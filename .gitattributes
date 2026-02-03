@@ -1,0 +1,27 @@
+﻿# Normalize line endings: commit as LF, checkout per platform.
+* text=auto
+
+# Force LF for all source and config files.
+*.cpp  text eol=lf
+*.h    text eol=lf
+*.hpp  text eol=lf
+*.cmake text eol=lf
+CMakeLists.txt text eol=lf
+*.yml  text eol=lf
+*.yaml text eol=lf
+*.md   text eol=lf
+*.sh   text eol=lf
+*.json text eol=lf
+*.in   text eol=lf
+Dockerfile text eol=lf
+.gitignore text eol=lf
+.clang-format text eol=lf
+.clang-tidy text eol=lf
+.dockerignore text eol=lf
+LICENSE text eol=lf
+
+# Binary files — no EOL conversion.
+*.db    binary
+*.dummy binary
+*.png   binary
+*.jpg   binary
