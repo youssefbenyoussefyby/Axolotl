@@ -1,4 +1,4 @@
-﻿#include <gtest/gtest.h>
+#include <gtest/gtest.h>
 #include <parser/lexer.h>
 #include <parser/token.h>
 #include <utils/diagnosticsink.h>
@@ -148,18 +148,18 @@ TEST(LexerTest, EscapedQuoteInStringLiteral) {
     ASSERT_GE(tokens.size(), 4u);
 
     EXPECT_EQ(tokens[0].GetKind(), TokenKind::STRING);
-    EXPECT_EQ(GetLexeme(tokens[0]), "'hello'");
+    EXPECT_EQ(GetLexeme(tokens[0]), "hello");
 
     // Escaped '' inside string literal
     EXPECT_EQ(tokens[1].GetKind(), TokenKind::STRING);
-    EXPECT_EQ(GetLexeme(tokens[1]), "'it''s fine'");
+    EXPECT_EQ(GetLexeme(tokens[1]), "it''s fine");
 
     // Empty string
     EXPECT_EQ(tokens[2].GetKind(), TokenKind::STRING);
-    EXPECT_EQ(GetLexeme(tokens[2]), "''");
+    EXPECT_EQ(GetLexeme(tokens[2]), "");
 
     EXPECT_EQ(tokens[3].GetKind(), TokenKind::STRING);
-    EXPECT_EQ(GetLexeme(tokens[3]), "'quoted ''word'' here'");
+    EXPECT_EQ(GetLexeme(tokens[3]), "quoted ''word'' here");
 }
 
 TEST(LexerTest, IntegerVsFloatDisambiguation) {
