@@ -99,6 +99,41 @@ ctest --test-dir build --output-on-failure --no-tests=error
 
 ---
 
+## Try the CLI
+
+After building, the interactive SQL REPL is the easiest way to explore the engine:
+
+```bash
+# Linux / macOS
+./build/axolotldb-cli
+
+# Windows
+.\build\Release\AxolotlDB-cli.exe
+```
+
+Once inside, type `:dev` to enter dev mode, then:
+
+```
+:seed          — create the demo table (king_ya_bay) with 6 rows
+:tables        — list all tables in the current database
+:help          — show all available commands
+:quit / :q     — exit
+
+-- run any SQL (terminate with ;)
+SELECT * FROM king_ya_bay WHERE age = 23;
+SELECT id, name FROM king_ya_bay;
+CREATE TABLE items (id INT32, label VARCHAR, price FLOAT64);
+INSERT INTO items VALUES (1, 'axolotl', 9.99);
+```
+
+The CLI runs the full pipeline: **lex → parse → bind → plan → execute → render**.  
+Data is persisted to a local `data/` directory and survives restarts.
+
+> **Note**: only `SELECT`, `INSERT`, `CREATE TABLE`, and `DROP TABLE` are supported at this stage.
+> Joins, aggregates, and indexes are planned for P4–P6.
+
+---
+
 ## Project structure
 
 ```
