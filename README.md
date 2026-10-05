@@ -1,112 +1,168 @@
-# Axolotl
+# AxolotlDB
 
-Vector DB
+> A from-scratch relational + vector database engine written in C++20.
+> Built for learning, research, and eventually production-grade performance.
 
-## TODO (Based on Project Plan)
+[![CI](https://github.com/youssefbenyoussefyby/Axolotl/actions/workflows/main.yml/badge.svg?branch=Axolot)](https://github.com/youssefbenyoussefyby/Axolotl/actions/workflows/main.yml)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
+[![C++20](https://img.shields.io/badge/C%2B%2B-20-blue.svg)](https://en.cppreference.com/w/cpp/20)
 
-### Phase 1: Foundation & Infrastructure (Weeks 1-6)
-- [x] Finalize repository/build baseline (`CMakeLists.txt`, toolchain, presets)
-- [x] Add CI pipeline (build + test on PR)
-- [x] Configure formatting/linting (`clang-format`, warnings policy)
-- [x] Set up test harness (GoogleTest/GoogleMock)
-- [x] Implement core utils: logger, config, memory, errors
-- [x] Implement storage foundation: page, file manager, buffer pool (LRU), tuple
-- [x] Implement vector storage: separate `VectorHeap` for embeddings larger than a page
-- [ ] Implement storage services: `StorageManager`, `PageGuard`, `TableHeap`, catalog
-- [ ] Add unit tests for core components and target >80% coverage
+---
 
-### Phase 2: Parser & Catalog (Weeks 7-10)
-- [ ] Define SQL subset grammar in `src/parser/parser.y` and tokens in `src/parser/lexer.l`
-- [ ] Implement AST + semantic analyzer
-- [ ] Support DDL: `CREATE TABLE`, `CREATE INDEX`, `DROP`
-- [ ] Implement catalog metadata persistence (tables/columns/indexes)
-- [ ] Add statistics collection for optimizer
-- [ ] Add schema/type/name validation
-- [ ] Produce initial logical plan for basic SELECT
+## What is AxolotlDB?
 
-### Phase 3: Execution Engine (Weeks 11-16)
-- [ ] Implement operators: scan, filter, project, insert, update, delete
-- [ ] Implement joins: nested loop, hash join (sort-merge optional)
-- [ ] Implement aggregation: GROUP BY + COUNT/SUM/AVG/MIN/MAX + HAVING
-- [ ] Implement optimizer core: cost model, predicate/projection pushdown
-- [ ] Add join ordering strategy and index selection
-- [ ] Add integration tests for complex SELECT, joins, aggregates
+AxolotlDB is an educational database engine built from first principles in C++20.
+The goal is to implement every layer of a modern database system — storage, parsing,
+query planning, execution, indexing, and transaction management — without relying on
+existing database libraries.
 
-### Phase 4: Relational Indexing (Weeks 17-20)
-- [ ] Implement disk-backed B+ tree (split/merge/range scan)
-- [ ] Implement hash index for equality lookup
-- [ ] Add index scan operators
-- [ ] Add index maintenance on DML operations
-- [ ] Wire index selection into optimizer
-- [ ] Add `CREATE INDEX`/`DROP INDEX` execution path + tests
+The project is structured as an incremental series of phases, each building on the last.
+Each phase has a detailed specification in [`docs/phases/`](docs/phases/README.md) and a
+clear gate condition before the next phase begins.
 
-### Phase 5: Vector Indexing & ANN (Weeks 21-26)
-- [ ] Implement vector type and vector column storage
-- [ ] Implement distance metrics (L2, cosine)
-- [ ] Implement HNSW graph/index/search
-- [ ] Add IVF index as optional path
-- [ ] Add KNN and hybrid query execution (`filter + vector`)
-- [ ] Add recall/latency benchmarks under `benchmarks/vector_bench`
+---
 
-### Phase 6: Semantic Search & Embeddings (Weeks 27-30)
-- [ ] Integrate ONNX Runtime embedding inference pipeline
-- [ ] Load sentence-transformer model from `models/sentence-bert`
-- [ ] Implement auto-embedding on INSERT/UPDATE
-- [ ] Add batch embedding for bulk ingestion
-- [ ] Add semantic query flow: text -> embedding -> vector search -> ranking
-- [ ] Benchmark semantic vs keyword retrieval quality
+## Current Status — v0.1.0
 
-### Phase 7: Transactions & Durability (Weeks 31-34)
-- [ ] Implement WAL record format and append/replay flow
-- [ ] Implement BEGIN/COMMIT/ROLLBACK transaction manager
-- [ ] Add locking or MVCC baseline
-- [ ] Implement crash recovery procedure and tests
-- [ ] Add isolation support (minimum: READ COMMITTED)
-- [ ] Add concurrency/deadlock tests
+The **storage engine** (Phases P0–P2) is complete and well-tested.
 
-### Phase 8: Client/Server & CLI (Weeks 35-36)
-- [ ] Define network protocol and message framing
-- [ ] Implement TCP server + session management + thread pool
-- [ ] Implement CLI REPL and script execution mode
-- [ ] Add output formatting modes (table/JSON/CSV)
-- [ ] Add multi-client load tests
+| Phase | Scope | Status |
+|-------|-------|--------|
+| **P0** | Hardening — page validation, CI baseline, 0 warnings | ✅ Done |
+| **P1** | Storage core — Page, FileManager, BufferPool, Tuple, VectorHeap | ✅ Done |
+| **P2** | Storage services — StorageManager, PageGuard, TableHeap, Catalog, WAL contract | ✅ Done |
+| **P3** | SQL front end — lexer, parser, binder, logical plan | 🔜 Next |
+| **P4** | Execution engine — Volcano operators, rule-based rewrites | ⬜ Planned |
+| **P5** | WAL + recovery + page latching | ⬜ Planned |
+| **P6** | Relational indexing — B+Tree, hash index, IndexScan | ⬜ Planned |
+| **P7** | Vector indexing / ANN — brute force → HNSW | ⬜ Planned |
+| **P8** | Optimizer + statistics | ⬜ Planned |
+| **P9** | Client / server / CLI | ⬜ Planned |
+| **P10** | Embeddings — provider interface, optional ONNX | ⬜ Planned |
 
-## Cross-Cutting Quality Gates
-- [ ] Keep `-Wall -Wextra` warning-free
-- [ ] Add API/docs for public modules
-- [ ] Track performance targets (SELECT, JOIN, KNN, TPS)
-- [ ] Verify memory safety (ASan/Valgrind where applicable)
+### What works today
 
-## Immediate Next Tasks
-- [x] Complete storage engine MVP (`page`, `file_manager`, `buffer_pool`, `tuple`)
-- [x] Add tests for storage read/write + eviction behavior
-- [x] Harden Phase 1 (P0): page validation, CI baseline — see [docs/ROADMAP.md](docs/ROADMAP.md)
-- [ ] Build the storage services layer (P2), then land the first end-to-end path:
-      parse -> plan -> table scan -> result
+The storage layer stores and retrieves rows — including rows with embeddings larger
+than a single page — and survives a full close-and-reopen cycle. It is covered by
+**144 tests** across 9 suites.
 
-> The phase breakdown below is the original plan. It has been restructured —
-> see **[docs/ROADMAP.md](docs/ROADMAP.md)** for the current phases, the Phase 1
-> audit, and the on-disk format specification.
+| Component | Location | Description |
+|-----------|----------|-------------|
+| `Page` | `src/storage/page.cpp` | Slotted page: insert / get / delete, tombstones, validated header |
+| `FileManager` | `src/storage/file_manager.cpp` | page_id ↔ file offset mapping, real `fsync` |
+| `BufferPool` | `src/storage/buffer_pool.cpp` | LRU eviction, pin/unpin, strong exception guarantee |
+| `Tuple` | `src/storage/tuple.cpp` | `[null bitmap | fixed | lengths | var data]` layout, region-validated |
+| `VectorHeap` | `src/storage/vector_heap.cpp` | Fixed-stride computed addressing for large embeddings; Sync/Rollback |
+| `ConfigManager` | `src/utils/config.cpp` | YAML config + `AXOLOTLDB_*` env variable overrides |
+| `Logger` | `src/utils/logger.cpp` | spdlog facade, console + rotating file sink |
+| `Allocator` | `src/utils/memory.cpp` | Raw / tracking / guarded allocator, over-alignment support |
 
-## Project Structure
+---
 
-```text
-.
-|-- include/
-|   |-- parser/
-|   |-- optimizer/
-|   |-- executor/
-|   |-- storage/
-|   |-- index/
-|   |-- vector/
-|   |-- catalog/
-|   |-- network/
-|   `-- utils/
-|-- src/
-|-- cli/
-|-- server/
-|-- tests/
-|-- benchmarks/
-|-- third_party/
-`-- models/
+## Building
+
+### Prerequisites
+
+- **C++20** compiler: GCC ≥ 12, Clang ≥ 16, or MSVC ≥ 19.30 (VS 2022)
+- **CMake** ≥ 3.21
+- **Ninja** (recommended) or MSBuild / Make
+- Internet access on first build (CMake `FetchContent` pulls GoogleTest, spdlog, yaml-cpp, Eigen, Asio, CLI11, nlohmann/json)
+
+### Quick start
+
+```bash
+# Clone
+git clone https://github.com/youssefbenyoussefyby/Axolotl.git
+cd Axolotl
+
+# Configure (Linux / macOS)
+cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DENABLE_TESTING=ON
+
+# Configure (Windows — no Ninja needed, MSVC auto-detected)
+cmake -B build -DENABLE_TESTING=ON
+
+# Build
+cmake --build build --parallel
+
+# Run tests
+ctest --test-dir build --output-on-failure --no-tests=error
 ```
+
+### CMake options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `ENABLE_TESTING` | `ON` | Build and register test targets with CTest |
+| `ENABLE_COVERAGE` | `OFF` | Add `--coverage` flags (GCC/Clang only) |
+| `BUILD_SERVER` | `ON` | Build the server binary |
+| `BUILD_CLI` | `ON` | Build the CLI binary |
+
+---
+
+## Project structure
+
+```
+.
+├── include/          # Public headers (storage/, utils/, catalog/, …)
+├── src/              # Implementation (.cpp files mirroring include/)
+│   ├── storage/      # Page, FileManager, BufferPool, Tuple, VectorHeap, …
+│   └── utils/        # Logger, ConfigManager, Allocator
+├── cli/              # CLI binary (axolotldb-cli)
+├── server/           # Server binary (axolotldb-server) — stub
+├── tests/            # GoogleTest suites
+├── benchmarks/       # Micro-benchmarks (Google Benchmark)
+├── docs/
+│   ├── ROADMAP.md    # Architecture, on-disk format spec, phase gates
+│   ├── audit.md      # Full Phase 1 audit findings (A1–A8, B1–B8, C1–C14, D1–D9, N1–N14)
+│   └── phases/       # Per-phase reading lists and implementation checklists
+├── cmake/            # CMake helper modules and package config template
+├── third_party/      # Vendored / FetchContent dependencies
+├── Dockerfile        # Multi-stage build image
+├── docker-compose.yml
+├── .github/workflows/main.yml  # CI: Linux (GCC+Clang), Windows/MSVC, ASan/UBSan, Coverage, Docker
+└── THIRD_PARTY_NOTICES.md
+```
+
+---
+
+## Running via Docker
+
+```bash
+# Build the image
+docker build -t axolotldb:dev .
+
+# Run the server (exits immediately in current stub)
+docker run --rm axolotldb:dev axolotldb-server
+
+# Or use docker-compose
+docker-compose up
+```
+
+---
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [`docs/ROADMAP.md`](docs/ROADMAP.md) | Architecture, on-disk format catalogue, per-phase API specs and gates |
+| [`docs/audit.md`](docs/audit.md) | Full Phase 1 audit — 45 findings across storage, CI, build, style |
+| [`docs/phases/README.md`](docs/phases/README.md) | Phase index with reading lists and implementation checklists |
+| [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) | Licences for all third-party dependencies |
+
+---
+
+## Contributing
+
+This is a personal research and learning project. Issues and PRs are welcome, but
+there is no support commitment at this stage.
+
+Before opening a PR, please:
+1. Run `clang-format` (config in [`.clang-format`](.clang-format))
+2. Ensure all tests pass: `ctest --test-dir build --output-on-failure`
+3. Keep commits focused and messages descriptive
+
+---
+
+## License
+
+[GNU General Public License v3.0](LICENSE) — © 2026 Youssef Ben Youssef

@@ -1,10 +1,10 @@
-﻿# Third-Party Notices — AxolotlDB
+# Third-Party Notices — AxolotlDB
 
-AxolotlDB is released under the Apache License 2.0.
+AxolotlDB is released under the GNU General Public License v3.0.
 Copyright 2026 Youssef Ben Youssef.
 
 This file lists open-source components fetched via CMake FetchContent.
-Each is used unmodified unless noted. All are compatible with Apache 2.0.
+Each is used unmodified unless noted. All licenses are compatible with GPL v3.
 
 ---
 

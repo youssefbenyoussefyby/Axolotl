@@ -1,11 +1,11 @@
-﻿# AxolotlDB — Architecture, Audit & Implementation Roadmap
+# AxolotlDB — Architecture, Audit & Implementation Roadmap
 
 > **Supersedes** `axolotl_progress_report.md` as the project's source of truth.
 > **Companion to** [`audit.md`](audit.md), which remains the record of findings A1–A8,
 > B1–B8, C1–C14 and D1–D9. This document does not repeat those; it adds N1–N14,
 > which that audit did not cover, and specifies everything after Phase 1.
 >
-> **Branch** `Axolot` · **Baseline commit** `f60ad8b` · **C++20** · namespace `AxolotlDB`
+> **Branch** `Axolot` · **Baseline commit** `d9d5a9f` · **C++20** · namespace `axolotldb`
 
 ---
 
