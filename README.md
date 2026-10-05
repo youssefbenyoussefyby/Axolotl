@@ -1,7 +1,7 @@
 # AxolotlDB
 
-> A from-scratch relational + vector database engine written in C++20.
-> Built for learning, research, and eventually production-grade performance.
+> A from-scratch relational + vector database engine in C++20, built as an
+> instrumented testbed for database research.
 
 [![CI](https://github.com/youssefbenyoussefyby/Axolotl/actions/workflows/main.yml/badge.svg?branch=Axolot)](https://github.com/youssefbenyoussefyby/Axolotl/actions/workflows/main.yml)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
@@ -11,51 +11,57 @@
 
 ## What is AxolotlDB?
 
-AxolotlDB is an educational database engine built from first principles in C++20.
-The goal is to implement every layer of a modern database system — storage, parsing,
-query planning, execution, indexing, and transaction management — without relying on
-existing database libraries.
+AxolotlDB implements every layer of a database system itself: storage, SQL parsing,
+planning, execution, indexing, recovery and (later) vector search, with no existing
+database library underneath.
 
-The project is structured as an incremental series of phases, each building on the last.
-Each phase has a detailed specification in [`docs/phases/`](docs/phases/README.md) and a
-clear gate condition before the next phase begins.
+It has two goals:
+
+1. **Learning, done properly.** Every phase has a written spec, a gate test and an
+   audit trail. A phase is complete when a test proves the behaviour, not when the file exists.
+2. **Research.** Owning every layer makes the engine a controllable testbed for three
+   questions about AI-assisted databases (see [Research directions](#research-directions)).
 
 ---
 
-## Current Status — v0.1.0
+## Status
 
-The **storage engine** (Phases P0–P2) is complete and well-tested.
+The engine runs end to end: SQL text is lexed, parsed, bound, planned, converted to a
+physical plan and executed over real files, under a buffer pool small enough to force eviction.
 
 | Phase | Scope | Status |
 |-------|-------|--------|
-| **P0** | Hardening — page validation, CI baseline, 0 warnings | ✅ Done |
-| **P1** | Storage core — Page, FileManager, BufferPool, Tuple, VectorHeap | ✅ Done |
-| **P2** | Storage services — StorageManager, PageGuard, TableHeap, Catalog, WAL contract | ✅ Done |
-| **P3** | SQL front end — lexer, parser, binder, logical plan | 🔜 Next |
-| **P4** | Execution engine — Volcano operators, rule-based rewrites | ⬜ Planned |
-| **P5** | WAL + recovery + page latching | ⬜ Planned |
-| **P6** | Relational indexing — B+Tree, hash index, IndexScan | ⬜ Planned |
-| **P7** | Vector indexing / ANN — brute force → HNSW | ⬜ Planned |
-| **P8** | Optimizer + statistics | ⬜ Planned |
+| **P0** | Hardening: page validation, green CI baseline | ✅ Done |
+| **P1** | Storage core: Page, FileManager, BufferPool, Tuple, VectorHeap | ✅ Done |
+| **P2** | Storage services: StorageManager, PageGuard, TableHeap, Catalog, WAL contract | ✅ Done |
+| **P3** | SQL front end: lexer, parser (recursive descent + Pratt), binder, logical plan | ✅ Done |
+| **P4** | Execution engine (Volcano iterator) | 🚧 In progress: framework and the **4.2 milestone** (SeqScan + Filter + Projection) reached; DML, joins, aggregation, sort, rewrites next |
+| **P5** | WAL + ARIES-style recovery + page latching + 2PL | ⬜ Planned |
+| **P6** | Relational indexing: B+Tree, hash index, IndexScan | ⬜ Planned |
+| **P7** | Vector indexing: exact KNN oracle, then persisted HNSW | ⬜ Planned |
+| **P8** | Optimizer + statistics (Selinger-style baseline) | ⬜ Planned |
 | **P9** | Client / server / CLI | ⬜ Planned |
-| **P10** | Embeddings — provider interface, optional ONNX | ⬜ Planned |
+| **P10** | Embeddings (optional) | ⬜ Planned |
+
+Per-phase specs, reading lists and commit-sized checklists: [`docs/phases/`](docs/phases/README.md).
+Architecture, on-disk formats and gate tests: [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ### What works today
 
-The storage layer stores and retrieves rows — including rows with embeddings larger
-than a single page — and survives a full close-and-reopen cycle. It is covered by
-**144 tests** across 9 suites.
+| Layer | Components |
+|-------|------------|
+| Storage | `Page` (slotted, validated against corrupt headers), `FileManager` (real `fsync`), `BufferPool` (LRU, pin/unpin), `StorageManager` (one pool shared across files), `PageGuard` (RAII pins), `TableHeap` (RID addressing, free-space map, compaction), `VectorHeap` (fixed-stride, large embeddings, commit/rollback) |
+| Catalog | Tables, schemas and vector-heap ids stored in a table inside the database |
+| Front end | Lexer, parser, binder (name/type resolution against the catalog), logical planner, with positioned error messages |
+| Execution | Physical plan, executor factory, SeqScan, Filter, Projection |
+| Utilities | YAML config with env overrides, spdlog logger, tracking/guarded allocator |
 
-| Component | Location | Description |
-|-----------|----------|-------------|
-| `Page` | `src/storage/page.cpp` | Slotted page: insert / get / delete, tombstones, validated header |
-| `FileManager` | `src/storage/file_manager.cpp` | page_id ↔ file offset mapping, real `fsync` |
-| `BufferPool` | `src/storage/buffer_pool.cpp` | LRU eviction, pin/unpin, strong exception guarantee |
-| `Tuple` | `src/storage/tuple.cpp` | `[null bitmap | fixed | lengths | var data]` layout, region-validated |
-| `VectorHeap` | `src/storage/vector_heap.cpp` | Fixed-stride computed addressing for large embeddings; Sync/Rollback |
-| `ConfigManager` | `src/utils/config.cpp` | YAML config + `AXOLOTLDB_*` env variable overrides |
-| `Logger` | `src/utils/logger.cpp` | spdlog facade, console + rotating file sink |
-| `Allocator` | `src/utils/memory.cpp` | Raw / tracking / guarded allocator, over-alignment support |
+### What does not exist yet
+
+Be aware before you try it: `INSERT`/`UPDATE`/`DELETE` executors (P4.3), joins (P4.4),
+aggregation, sorting and limit (P4.5), rewrite rules (P4.6), transactions and crash
+recovery (P5), any index (P6/P7), the optimizer (P8) and the network server (P9).
+The server binary is a stub.
 
 ---
 
@@ -65,72 +71,136 @@ than a single page — and survives a full close-and-reopen cycle. It is covered
 
 - **C++20** compiler: GCC ≥ 12, Clang ≥ 16, or MSVC ≥ 19.30 (VS 2022)
 - **CMake** ≥ 3.21
-- **Ninja** (recommended) or MSBuild / Make
-- Internet access on first build (CMake `FetchContent` pulls GoogleTest, spdlog, yaml-cpp, Eigen, Asio, CLI11, nlohmann/json)
+- **Ninja** (recommended)
+- Internet access on first configure (`FetchContent` pulls the dependencies)
 
-### Quick start
+### Build and test
 
 ```bash
-# Clone
 git clone https://github.com/youssefbenyoussefyby/Axolotl.git
 cd Axolotl
 
-# Configure (Linux / macOS)
+# Linux / macOS
 cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DENABLE_TESTING=ON
 
-# Configure (Windows — no Ninja needed, MSVC auto-detected)
+# Windows (MSVC auto-detected)
 cmake -B build -DENABLE_TESTING=ON
 
-# Build
 cmake --build build --parallel
-
-# Run tests
 ctest --test-dir build --output-on-failure --no-tests=error
 ```
 
-### CMake options
-
 | Option | Default | Description |
 |--------|---------|-------------|
-| `ENABLE_TESTING` | `ON` | Build and register test targets with CTest |
-| `ENABLE_COVERAGE` | `OFF` | Add `--coverage` flags (GCC/Clang only) |
-| `BUILD_SERVER` | `ON` | Build the server binary |
-| `BUILD_CLI` | `ON` | Build the CLI binary |
+| `ENABLE_TESTING` | `ON` | Build and register test targets |
+| `ENABLE_COVERAGE` | `OFF` | `--coverage` flags (GCC/Clang) |
+| `BUILD_SERVER` | `ON` | Build the server stub |
+| `BUILD_CLI` | `ON` | Build the CLI |
 
 ---
 
-## Try the CLI
+## The CLI
 
-After building, the interactive SQL REPL is the easiest way to explore the engine:
+The CLI embeds the engine and runs the full pipeline:
+**lex → parse → bind → plan → physical plan → execute → render**.
 
 ```bash
 # Linux / macOS
-./build/axolotldb-cli
+./build/axolotdb-cli --dev
 
 # Windows
-.\build\Release\AxolotlDB-cli.exe
+.\build\Release\axolotdb-cli.exe --dev
 ```
 
-Once inside, type `:dev` to enter dev mode, then:
+Run it from the repository root so it can find `cli/data/phases.json` and
+`cli/data/queries.json` (or pass `--meta-dir`).
+
+### Options
+
+| Flag | Meaning |
+|------|---------|
+| `-c, --config <file>` | YAML config file |
+| `--log-level <lvl>` | `trace\|debug\|info\|warn\|error\|critical\|off` |
+| `-d, --data-dir <dir>` | Database directory (default `AxolotlDB_data`) |
+| `--meta-dir <dir>` | Directory with `phases.json` and `queries.json` |
+| `--dev` | Start directly in dev mode |
+| `--no-anim` | Disable animations (automatic when output is piped) |
+
+### Modes
+
+| Mode | Purpose |
+|------|---------|
+| `user`, `admin` | Placeholders: input is echoed back. They exist so the console has a home for those modules later |
+| **`dev`** | Everything built so far: SQL on the real engine, roadmap view, demo data, animations |
+
+**Dev mode** gates SQL by `cli/data/queries.json`. A statement runs only if every
+feature it uses is marked `available`; otherwise the CLI tells you which phase and task
+will deliver it. This keeps the console honest while the engine grows.
+
+### Commands
+
+| Command | Description |
+|---------|-------------|
+| `:dev` (`:debug`), `:user`, `:admin` | Switch mode |
+| `:queries` | SQL that works today, and what is planned and when |
+| `:status` (`:roadmap`) | Progress bar per phase, from `phases.json` |
+| `:tasks [P4]` | Task checklist of a phase (default: the current stage) |
+| `:seed` | Create the demo table `king_ya_bay` (id, name, age, aura) with 6 rows, inserted through `TableHeap` directly because `INSERT` is not an executor yet |
+| `:tables` | List tables |
+| `:swim` | Watch the axolotl swim by |
+| `:clear`, `:help`, `:exit` (`:quit`, `:q`) | Utilities |
+
+SQL ends with `;` and may span several lines. `\c` or `:cancel` discards a half-typed statement.
+
+### Example session
 
 ```
-:seed          — create the demo table (king_ya_bay) with 6 rows
-:tables        — list all tables in the current database
-:help          — show all available commands
-:quit / :q     — exit
-
--- run any SQL (terminate with ;)
-SELECT * FROM king_ya_bay WHERE age = 23;
-SELECT id, name FROM king_ya_bay;
-CREATE TABLE items (id INT32, label VARCHAR, price FLOAT64);
-INSERT INTO items VALUES (1, 'axolotl', 9.99);
+꒰• - •꒱> :dev
+꒰◉ - ◉꒱> :seed
+  ✔ created table `king_ya_bay` (id, name, age, aura) with 6 rows
+꒰◉ - ◉꒱> SELECT id, name FROM king_ya_bay WHERE age >= 23;
 ```
 
-The CLI runs the full pipeline: **lex → parse → bind → plan → execute → render**.  
-Data is persisted to a local `data/` directory and survives restarts.
+Syntax errors report line and column with a caret under the offending token.
+Data lives in the data directory and survives restarts.
 
-> **Note**: only `SELECT`, `INSERT`, `CREATE TABLE`, and `DROP TABLE` are supported at this stage.
-> Joins, aggregates, and indexes are planned for P4–P6.
+---
+
+## Research directions
+
+The engine is built so that research ideas can be implemented, instrumented and measured
+against a classical baseline in the same codebase. All three directions are **planned work**;
+no results are claimed yet. The draft research plan lives in
+[`docs/research/RESEARCH.md`](docs/research/RESEARCH.md).
+
+| # | Direction | Core question | Baseline |
+|---|-----------|---------------|----------|
+| 1 | **Semantic filters for text columns** | Can predicates evaluated by an embedding or LLM model (e.g. "the review is about shipping delays") be placed in a query plan cost-aware, running cheap relational predicates first? | Cheap-predicates-first plan; model predicate evaluated on every row |
+| 2 | **Model-assisted query optimization** | Can a decision model, given the plan tree and column statistics, pick better plans than a classical cost model, with the classical optimizer kept as fallback? | The Selinger-style optimizer built in P8 |
+| 3 | **Forgetting / memory-like storage** | Can a text-heavy store compress old data semantically (summarise, merge, evict) while keeping query answers useful under a storage budget? | Retain everything; LRU-style eviction |
+
+Future work: storing and querying **knowledge graphs** in the same engine.
+
+### Why this engine suits the research
+
+- **Instrumented at every layer.** Plans are inspectable trees, so a model can consume a plan and
+  a test can assert on it.
+- **Ground truth built in.** P7's `BruteForceIndex` defines recall for vector search; every
+  rewrite and plan choice is checked by comparing row results against an unoptimised plan.
+- **Reproducibility.** Fixed seeds, committed benchmark results (`benchmarks/`), and gate
+  tests that assert on plan structure rather than wall-clock time.
+
+---
+
+## Engineering principles
+
+- **Test-first.** Gate tests are written against the specified interfaces and must fail before the work.
+- **Gates, not dates.** Phase sizes are relative; completion is a passing gate.
+- **Trust nothing that came off disk.** Every on-disk structure gets a validator.
+- **Audit and amend.** Findings and corrections are recorded in the
+  [amendment log](docs/ROADMAP.md#7-amendment-log) instead of silently rewritten.
+- **CI on seven surfaces:** Linux (GCC and Clang, Ubuntu 22.04 and 24.04), Windows/MSVC,
+  ASan/UBSan, coverage, code quality, Docker.
 
 ---
 
@@ -138,39 +208,30 @@ Data is persisted to a local `data/` directory and survives restarts.
 
 ```
 .
-├── include/          # Public headers (storage/, utils/, catalog/, …)
-├── src/              # Implementation (.cpp files mirroring include/)
-│   ├── storage/      # Page, FileManager, BufferPool, Tuple, VectorHeap, …
-│   └── utils/        # Logger, ConfigManager, Allocator
-├── cli/              # CLI binary (axolotldb-cli)
-├── server/           # Server binary (axolotldb-server) — stub
-├── tests/            # GoogleTest suites
-├── benchmarks/       # Micro-benchmarks (Google Benchmark)
+├── include/            Public headers (storage/, catalog/, parser/, optimizer/, executor/, utils/)
+├── src/                Implementation, mirroring include/
+├── cli/                Interactive console (main.cpp, sql_runner, mini_json)
+│   └── data/           phases.json, queries.json: drive :status and the SQL gate
+├── server/             Server binary (stub)
+├── tests/              GoogleTest suites (unit/, integration/)
+├── benchmarks/         Micro-benchmarks
 ├── docs/
-│   ├── ROADMAP.md    # Architecture, on-disk format spec, phase gates
-│   ├── audit.md      # Full Phase 1 audit findings (A1–A8, B1–B8, C1–C14, D1–D9, N1–N14)
-│   └── phases/       # Per-phase reading lists and implementation checklists
-├── cmake/            # CMake helper modules and package config template
-├── third_party/      # Vendored / FetchContent dependencies
-├── Dockerfile        # Multi-stage build image
-├── docker-compose.yml
-├── .github/workflows/main.yml  # CI: Linux (GCC+Clang), Windows/MSVC, ASan/UBSan, Coverage, Docker
+│   ├── ROADMAP.md      Architecture, on-disk formats, phase gates, amendment log
+│   ├── audit.md        Storage-layer audit findings
+│   ├── phases/         Per-phase reading lists and checklists
+│   └── research/       Research plan
+├── cmake/              CMake helpers
+├── Dockerfile, docker-compose.yml
 └── THIRD_PARTY_NOTICES.md
 ```
 
 ---
 
-## Running via Docker
+## Docker
 
 ```bash
-# Build the image
 docker build -t axolotldb:dev .
-
-# Run the server (exits immediately in current stub)
-docker run --rm axolotldb:dev axolotldb-server
-
-# Or use docker-compose
-docker-compose up
+docker run --rm axolotldb:dev axolotldb-server   # server is currently a stub
 ```
 
 ---
@@ -179,25 +240,25 @@ docker-compose up
 
 | Document | Description |
 |----------|-------------|
-| [`docs/ROADMAP.md`](docs/ROADMAP.md) | Architecture, on-disk format catalogue, per-phase API specs and gates |
-| [`docs/audit.md`](docs/audit.md) | Full Phase 1 audit — 45 findings across storage, CI, build, style |
-| [`docs/phases/README.md`](docs/phases/README.md) | Phase index with reading lists and implementation checklists |
-| [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) | Licences for all third-party dependencies |
+| [`docs/ROADMAP.md`](docs/ROADMAP.md) | Architecture, formats, phase specs and gates |
+| [`docs/phases/README.md`](docs/phases/README.md) | Phase guides: what to read and what to build, in order |
+| [`docs/research/RESEARCH.md`](docs/research/RESEARCH.md) | Research plan: hypotheses, baselines, evaluation |
+| [`docs/audit.md`](docs/audit.md) | Audit findings and how each was resolved |
+| [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) | Third-party licences |
 
 ---
 
 ## Contributing
 
-This is a personal research and learning project. Issues and PRs are welcome, but
-there is no support commitment at this stage.
+Personal research and learning project; issues and PRs are welcome, with no support
+commitment. Before opening a PR:
 
-Before opening a PR, please:
 1. Run `clang-format` (config in [`.clang-format`](.clang-format))
-2. Ensure all tests pass: `ctest --test-dir build --output-on-failure`
-3. Keep commits focused and messages descriptive
+2. Make sure `ctest --test-dir build --output-on-failure` passes
+3. Keep commits focused and describe the *why*
 
 ---
 
 ## License
 
-[GNU General Public License v3.0](LICENSE) — © 2026 Youssef Ben Youssef
+[GNU General Public License v3.0](LICENSE) © 2026 Youssef Ben Youssef
