@@ -146,7 +146,7 @@ namespace AxolotlDB::parser
                 break;
         }
         if(!isComment)
-        column_ += current_ - start_ + isSTring==1;
+        column_ += current_ - start_ + (isSTring==1);
     }
 
     void Lexer::number(){
