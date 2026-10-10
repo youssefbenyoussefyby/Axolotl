@@ -30,7 +30,8 @@ void SeqScanExecutor::Init() {
     end_ = heap_->end();
 }
 
-bool SeqScanExecutor::Next(std::vector<storage::Tuple>* tupleBatch,std::optional<std::vector<storage::RID>>& ridBatch) {
+bool SeqScanExecutor::Next(std::vector<storage::Tuple>* tupleBatch,
+                           std::optional<std::vector<storage::RID>>& ridBatch) {
     if (!tupleBatch) {
         return false;
     }
@@ -61,4 +62,4 @@ const storage::Schema& SeqScanExecutor::GetOutputSchema() const {
     return output_schema_;
 }
 
-}
+}  // namespace AxolotlDB::executor

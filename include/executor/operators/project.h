@@ -7,7 +7,7 @@
 namespace AxolotlDB::executor {
 
 class ProjectionExecutor : public AbstractExecutor {
-public:
+   public:
     ProjectionExecutor(ExecutorContext* ctx, const optimizer::PhysicalProject& plan,
                        std::unique_ptr<AbstractExecutor> child);
 
@@ -16,10 +16,10 @@ public:
               std::optional<std::vector<storage::RID>>& ridBatch) override;
     [[nodiscard]] const storage::Schema& GetOutputSchema() const override;
 
-private:
+   private:
     const optimizer::PhysicalProject& plan_;
     std::unique_ptr<AbstractExecutor> child_;
     storage::Schema output_schema_;
 };
 
-}
+}  // namespace AxolotlDB::executor

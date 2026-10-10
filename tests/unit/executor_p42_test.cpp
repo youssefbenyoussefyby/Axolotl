@@ -53,9 +53,22 @@
 //  M19 Filter: throw an unrelated exception where the RID misalignment check sits
 //        -> ChildThatIgnoresRidRequestIsRejected (now checks type and message)
 
+#include <catalog/catalog.h>
+#include <executor/executor.h>
+#include <executor/executor_context.h>
+#include <executor/operators/filter.h>
+#include <executor/operators/project.h>
+#include <executor/operators/scan.h>
 #include <gtest/gtest.h>
+#include <optimizer/physical_plan.h>
+#include <parser/ast/boundstmt.h>
+#include <storage/buffer_pool.h>
+#include <storage/storage_manager.h>
+#include <storage/table_heap.h>
+#include <storage/tuple.h>
 
 #include <algorithm>
+#include <chrono>
 #include <cstdint>
 #include <filesystem>
 #include <memory>
@@ -65,20 +78,6 @@
 #include <string>
 #include <system_error>
 #include <vector>
-
-#include <catalog/catalog.h>
-#include <chrono>
-#include <executor/executor.h>
-#include <executor/executor_context.h>
-#include <executor/operators/filter.h>
-#include <executor/operators/project.h>
-#include <executor/operators/scan.h>
-#include <optimizer/physical_plan.h>
-#include <parser/ast/boundstmt.h>
-#include <storage/buffer_pool.h>
-#include <storage/storage_manager.h>
-#include <storage/table_heap.h>
-#include <storage/tuple.h>
 
 using namespace AxolotlDB;
 using namespace AxolotlDB::executor;
@@ -96,20 +95,26 @@ struct Row {
 storage::Schema TwoColSchema() {
     return storage::Schema({
         storage::ColumnDef{"id", storage::ColumnType::INT32},
-        storage::ColumnDef{"v",  storage::ColumnType::INT32, true},  // nullable: data has NULLs
+        storage::ColumnDef{"v", storage::ColumnType::INT32, true},  // nullable: data has NULLs
     });
 }
 
-storage::Value IntValue(int32_t x) { return storage::Value::Int32(x); }
-storage::Value NullValue()          { return storage::Value::Null(storage::ColumnType::INT32); }
+storage::Value IntValue(int32_t x) {
+    return storage::Value::Int32(x);
+}
+storage::Value NullValue() {
+    return storage::Value::Null(storage::ColumnType::INT32);
+}
 
 storage::RID MakeRid(int32_t n) {
     storage::RID r;
-    r.page_id  = static_cast<storage::PageId>(n);
+    r.page_id = static_cast<storage::PageId>(n);
     r.slot_idx = 0;
     return r;
 }
-int32_t RidToInt(const storage::RID& r) { return static_cast<int32_t>(r.page_id); }
+int32_t RidToInt(const storage::RID& r) {
+    return static_cast<int32_t>(r.page_id);
+}
 
 // Full RID equality (page AND slot). Used for real-heap RID checks, where many
 // rows share one page and page_id alone cannot tell them apart.
@@ -118,22 +123,21 @@ bool RidEq(const storage::RID& a, const storage::RID& b) {
 }
 
 storage::Tuple MakeTuple(const storage::Schema& s, const Row& r, bool withRid) {
-    std::vector<storage::Value> vals{
-        IntValue(r.id),
-        r.v ? IntValue(*r.v) : NullValue()
-    };
+    std::vector<storage::Value> vals{IntValue(r.id), r.v ? IntValue(*r.v) : NullValue()};
     auto bytes = storage::Tuple::Serialize(s, vals);
     // Single-argument construction, then SetRID: avoids depending on how the
     // two-argument overload is resolved.
     storage::Tuple t(std::move(bytes));
-    if (withRid) t.SetRID(MakeRid(r.id));
+    if (withRid)
+        t.SetRID(MakeRid(r.id));
     return t;
 }
 
 std::optional<int32_t> DecodeInt(const storage::Tuple& t, const storage::Schema& s, size_t col) {
     auto values = storage::Tuple::Deserialize(s, t.Span());
     const auto& v = values[col];
-    if (v.IsNull()) return std::nullopt;
+    if (v.IsNull())
+        return std::nullopt;
     return v.AsInt32();
 }
 
@@ -148,7 +152,7 @@ std::optional<int32_t> DecodeInt(const storage::Tuple& t, const storage::Schema&
 struct GlobalCtxState {
     std::filesystem::path dir;
     std::unique_ptr<storage::StorageManager> sm;
-    std::unique_ptr<catalog::Catalog>         cat;
+    std::unique_ptr<catalog::Catalog> cat;
 
     GlobalCtxState() {
         const auto orig = std::filesystem::current_path();
@@ -157,7 +161,7 @@ struct GlobalCtxState {
         std::filesystem::remove_all(dir, ec);
         std::filesystem::create_directories(dir);
         std::filesystem::current_path(dir);
-        sm  = std::make_unique<storage::StorageManager>(4);
+        sm = std::make_unique<storage::StorageManager>(4);
         cat = std::make_unique<catalog::Catalog>(*sm);
         std::filesystem::current_path(orig);
     }
@@ -182,18 +186,15 @@ std::unique_ptr<ExecutorContext> MakeCtx(size_t batch) {
 // ---- PhysicalFilter builders ------------------------------------------------
 inline parser::ast::BoundExprPtr MakeColRef(uint32_t idx, storage::ColumnType t) {
     parser::ast::BoundColumnRef ref;
-    ref.tableId     = 0;
+    ref.tableId = 0;
     ref.columnIndex = idx;
-    ref.columnName  = (idx == 0) ? "id" : "v";
-    ref.type        = t;
+    ref.columnName = (idx == 0) ? "id" : "v";
+    ref.type = t;
     return std::make_unique<parser::ast::BoundExpr>(std::move(ref), t);
 }
 
 inline parser::ast::BoundExprPtr MakeLitInt32(int32_t val) {
-    parser::ast::BoundLiteral lit{
-        storage::ColumnType::INT32,
-        static_cast<int64_t>(val)
-    };
+    parser::ast::BoundLiteral lit{storage::ColumnType::INT32, static_cast<int64_t>(val)};
     return std::make_unique<parser::ast::BoundExpr>(std::move(lit), storage::ColumnType::INT32);
 }
 
@@ -201,31 +202,24 @@ inline parser::ast::BoundExprPtr MakeLitInt32(int32_t val) {
 // version typed EVERY node BOOLEAN, so `id + 1000` was declared boolean and
 // Evaluate correctly refused it ("arithmetic result has non-numeric type").
 inline parser::ast::BoundExprPtr MakeBinaryOp(
-    parser::ast::BinaryOperator op,
-    parser::ast::BoundExprPtr  l,
-    parser::ast::BoundExprPtr  r,
-    storage::ColumnType        resultType = storage::ColumnType::BOOLEAN)
-{
+    parser::ast::BinaryOperator op, parser::ast::BoundExprPtr l, parser::ast::BoundExprPtr r,
+    storage::ColumnType resultType = storage::ColumnType::BOOLEAN) {
     parser::ast::BoundBinaryOp biop{op, std::move(l), std::move(r), resultType};
     return std::make_unique<parser::ast::BoundExpr>(std::move(biop), resultType);
 }
 
 inline std::unique_ptr<optimizer::PhysicalFilter> MakeFilterPlan(
-    parser::ast::BinaryOperator op, int32_t k,
-    const storage::Schema& child_schema)
-{
-    auto pred = MakeBinaryOp(op,
-        MakeColRef(1, storage::ColumnType::INT32),
-        MakeLitInt32(k));
+    parser::ast::BinaryOperator op, int32_t k, const storage::Schema& child_schema) {
+    auto pred = MakeBinaryOp(op, MakeColRef(1, storage::ColumnType::INT32), MakeLitInt32(k));
 
     auto plan = std::make_unique<optimizer::PhysicalFilter>();
     plan->predicate = std::move(pred);
 
     for (size_t i = 0; i < child_schema.ColumnCount(); ++i) {
         optimizer::OutputColumn oc;
-        oc.name        = child_schema.columns[i].name;
-        oc.type        = child_schema.columns[i].type;
-        oc.tableId     = 0;
+        oc.name = child_schema.columns[i].name;
+        oc.type = child_schema.columns[i].type;
+        oc.tableId = 0;
         oc.columnIndex = static_cast<uint32_t>(i);
         plan->outputSchema.push_back(std::move(oc));
     }
@@ -258,17 +252,15 @@ std::unique_ptr<optimizer::PhysicalProject> ProjIdVIdPlus1000() {
     {
         optimizer::ProjectColumn pc;
         pc.name = "id_plus_1000";
-        pc.expr = MakeBinaryOp(
-            parser::ast::BinaryOperator::ADD,
-            MakeColRef(0, storage::ColumnType::INT32),
-            MakeLitInt32(1000),
-            storage::ColumnType::INT32);
+        pc.expr = MakeBinaryOp(parser::ast::BinaryOperator::ADD,
+                               MakeColRef(0, storage::ColumnType::INT32), MakeLitInt32(1000),
+                               storage::ColumnType::INT32);
         plan->projections.push_back(std::move(pc));
     }
 
     plan->outputSchema = {
-        optimizer::OutputColumn{"id",           storage::ColumnType::INT32, 0, 0},
-        optimizer::OutputColumn{"v",            storage::ColumnType::INT32, 0, 1},
+        optimizer::OutputColumn{"id", storage::ColumnType::INT32, 0, 0},
+        optimizer::OutputColumn{"v", storage::ColumnType::INT32, 0, 1},
         optimizer::OutputColumn{"id_plus_1000", storage::ColumnType::INT32, 0, 0},
     };
     return plan;
@@ -276,8 +268,8 @@ std::unique_ptr<optimizer::PhysicalProject> ProjIdVIdPlus1000() {
 
 storage::Schema ProjOutSchema() {
     return storage::Schema({
-        storage::ColumnDef{"id",           storage::ColumnType::INT32},
-        storage::ColumnDef{"v",            storage::ColumnType::INT32, true},
+        storage::ColumnDef{"id", storage::ColumnType::INT32},
+        storage::ColumnDef{"v", storage::ColumnType::INT32, true},
         storage::ColumnDef{"id_plus_1000", storage::ColumnType::INT32},
     });
 }
@@ -285,21 +277,21 @@ storage::Schema ProjOutSchema() {
 // ---- Real-heap helpers -------------------------------------------------------
 static storage::Schema RealTableSchema() {
     return storage::Schema({
-        storage::ColumnDef{"id",  storage::ColumnType::INT32},
-        storage::ColumnDef{"v",   storage::ColumnType::INT32, true},
+        storage::ColumnDef{"id", storage::ColumnType::INT32},
+        storage::ColumnDef{"v", storage::ColumnType::INT32, true},
         storage::ColumnDef{"pad", storage::ColumnType::VARCHAR},
     });
 }
 
 struct TestDb {
-    std::filesystem::path                     dir;
-    std::filesystem::path                     orig_dir;
-    std::unique_ptr<storage::StorageManager>  sm;
-    std::unique_ptr<catalog::Catalog>         cat;
-    std::unique_ptr<ExecutorContext>          ctx;
-    std::string                               table = "t";
-    std::vector<storage::RID>                 rids;   // rids[row_index]
-    storage::Schema                           schema = RealTableSchema();
+    std::filesystem::path dir;
+    std::filesystem::path orig_dir;
+    std::unique_ptr<storage::StorageManager> sm;
+    std::unique_ptr<catalog::Catalog> cat;
+    std::unique_ptr<ExecutorContext> ctx;
+    std::string table = "t";
+    std::vector<storage::RID> rids;  // rids[row_index]
+    storage::Schema schema = RealTableSchema();
 
     // FIX: tear down in dependency order (ctx -> cat -> sm), then leave the temp
     // dir, then delete it. Without this every test leaked its dir and left the
@@ -309,7 +301,8 @@ struct TestDb {
         cat.reset();
         sm.reset();
         std::error_code ec;
-        if (!orig_dir.empty()) std::filesystem::current_path(orig_dir, ec);
+        if (!orig_dir.empty())
+            std::filesystem::current_path(orig_dir, ec);
         std::filesystem::remove_all(dir, ec);
     }
 };
@@ -321,16 +314,15 @@ static std::string MakePad() {
 std::unique_ptr<TestDb> BuildDb(const std::vector<Row>& rows, size_t poolFrames) {
     auto db = std::make_unique<TestDb>();
     db->dir = std::filesystem::temp_directory_path() /
-              ("axo_p42_" + std::to_string(
-                  static_cast<uint64_t>(
-                      std::chrono::steady_clock::now().time_since_epoch().count())));
+              ("axo_p42_" + std::to_string(static_cast<uint64_t>(
+                                std::chrono::steady_clock::now().time_since_epoch().count())));
     std::error_code ec;
     std::filesystem::remove_all(db->dir, ec);
     std::filesystem::create_directories(db->dir);
     db->orig_dir = std::filesystem::current_path();
     std::filesystem::current_path(db->dir);
 
-    db->sm  = std::make_unique<storage::StorageManager>(poolFrames);
+    db->sm = std::make_unique<storage::StorageManager>(poolFrames);
     db->cat = std::make_unique<catalog::Catalog>(*db->sm);
     db->ctx = std::make_unique<ExecutorContext>(*db->sm, *db->cat, nullptr, 16);
 
@@ -352,7 +344,8 @@ std::unique_ptr<TestDb> BuildDb(const std::vector<Row>& rows, size_t poolFrames)
 
 void DeleteRows(TestDb& db, const std::vector<size_t>& datasetIdx) {
     auto& heap = db.cat->GetTableHeap(db.table);
-    for (size_t i : datasetIdx) heap.Delete(db.rids[i]);
+    for (size_t i : datasetIdx)
+        heap.Delete(db.rids[i]);
 }
 
 size_t TablePageCount(TestDb& db) {
@@ -371,14 +364,14 @@ void Rebatch(TestDb& db, size_t batch) {
 std::unique_ptr<optimizer::PhysicalSeqScan> ScanPlan(TestDb& db) {
     auto plan = std::make_unique<optimizer::PhysicalSeqScan>();
     plan->tableName = db.table;
-    plan->tableId   = db.cat->GetTableId(db.table);
-    plan->schema    = db.schema;
+    plan->tableId = db.cat->GetTableId(db.table);
+    plan->schema = db.schema;
 
     for (size_t i = 0; i < db.schema.ColumnCount(); ++i) {
         optimizer::OutputColumn oc;
-        oc.name        = db.schema.columns[i].name;
-        oc.type        = db.schema.columns[i].type;
-        oc.tableId     = plan->tableId;
+        oc.name = db.schema.columns[i].name;
+        oc.type = db.schema.columns[i].type;
+        oc.tableId = plan->tableId;
         oc.columnIndex = static_cast<uint32_t>(i);
         plan->outputSchema.push_back(std::move(oc));
     }
@@ -396,19 +389,24 @@ static std::vector<Row> MakeRows(int n) {
     std::vector<Row> rows;
     for (int i = 0; i < n; ++i) {
         Row r{i, static_cast<int32_t>((static_cast<int64_t>(i) * 37) % 100)};
-        if (i % 7 == 3) r.v = std::nullopt;
+        if (i % 7 == 3)
+            r.v = std::nullopt;
         rows.push_back(r);
     }
     return rows;
 }
 static std::vector<int32_t> OracleGE(const std::vector<Row>& rows, int32_t k) {
     std::vector<int32_t> out;
-    for (const auto& r : rows) if (r.v && *r.v >= k) out.push_back(r.id);
+    for (const auto& r : rows)
+        if (r.v && *r.v >= k)
+            out.push_back(r.id);
     return out;
 }
 static std::vector<int32_t> OracleLT(const std::vector<Row>& rows, int32_t k) {
     std::vector<int32_t> out;
-    for (const auto& r : rows) if (r.v && *r.v < k) out.push_back(r.id);
+    for (const auto& r : rows)
+        if (r.v && *r.v < k)
+            out.push_back(r.id);
     return out;
 }
 
@@ -416,32 +414,43 @@ static std::vector<int32_t> OracleLT(const std::vector<Row>& rows, int32_t k) {
 // ScriptedSource
 // ============================================================================
 class ScriptedSource : public AbstractExecutor {
-public:
+   public:
     ScriptedSource(ExecutorContext* ctx, storage::Schema schema, std::vector<Row> rows,
                    size_t chunk, bool honourRidRequests = true)
-        : AbstractExecutor(ctx), schema_(std::move(schema)), rows_(std::move(rows)),
-          chunk_(chunk), honourRids_(honourRidRequests) {}
+        : AbstractExecutor(ctx),
+          schema_(std::move(schema)),
+          rows_(std::move(rows)),
+          chunk_(chunk),
+          honourRids_(honourRidRequests) {}
 
-    void Init() override { pos_ = 0; ++initCalls; }
+    void Init() override {
+        pos_ = 0;
+        ++initCalls;
+    }
 
     bool Next(std::vector<storage::Tuple>* tb,
               std::optional<std::vector<storage::RID>>& rb) override {
         tb->clear();
-        if (rb.has_value()) rb->clear();
-        if (pos_ >= rows_.size()) return false;
+        if (rb.has_value())
+            rb->clear();
+        if (pos_ >= rows_.size())
+            return false;
         const size_t end = std::min(rows_.size(), pos_ + chunk_);
         for (; pos_ < end; ++pos_) {
             const bool wantRid = rb.has_value() && honourRids_;
             tb->push_back(adapter::MakeTuple(schema_, rows_[pos_], wantRid));
-            if (wantRid) rb->push_back(adapter::MakeRid(rows_[pos_].id));
+            if (wantRid)
+                rb->push_back(adapter::MakeRid(rows_[pos_].id));
         }
         return true;
     }
-    const storage::Schema& GetOutputSchema() const override { return schema_; }
+    const storage::Schema& GetOutputSchema() const override {
+        return schema_;
+    }
 
     int initCalls = 0;
 
-private:
+   private:
     storage::Schema schema_;
     std::vector<Row> rows_;
     size_t chunk_;
@@ -454,8 +463,8 @@ private:
 // ============================================================================
 struct Drained {
     std::vector<int32_t> ids;
-    std::vector<int32_t> ridInts;          // page_id only; fine for ScriptedSource (rid == id)
-    std::vector<storage::RID> rids;        // full RIDs; use these for real-heap checks
+    std::vector<int32_t> ridInts;    // page_id only; fine for ScriptedSource (rid == id)
+    std::vector<storage::RID> rids;  // full RIDs; use these for real-heap checks
     size_t calls = 0;
     size_t maxBatch = 0;
     bool ridMisaligned = false;
@@ -463,12 +472,14 @@ struct Drained {
 
 static Drained Drain(AbstractExecutor& ex, bool wantRids, bool callInit = true) {
     Drained d;
-    if (callInit) ex.Init();
+    if (callInit)
+        ex.Init();
     const auto& schema = ex.GetOutputSchema();
     for (int guard = 0; guard < 1'000'000; ++guard) {
         std::vector<storage::Tuple> batch;
         std::optional<std::vector<storage::RID>> rids;
-        if (wantRids) rids = std::vector<storage::RID>{};
+        if (wantRids)
+            rids = std::vector<storage::RID>{};
         if (!ex.Next(&batch, rids)) {
             EXPECT_TRUE(batch.empty()) << "false return must leave the batch empty";
             break;
@@ -476,13 +487,16 @@ static Drained Drain(AbstractExecutor& ex, bool wantRids, bool callInit = true) 
         ++d.calls;
         d.maxBatch = std::max(d.maxBatch, batch.size());
         if (wantRids) {
-            if (!rids.has_value() || rids->size() != batch.size()) d.ridMisaligned = true;
-            else for (auto& r : *rids) {
-                d.ridInts.push_back(adapter::RidToInt(r));
-                d.rids.push_back(r);
-            }
+            if (!rids.has_value() || rids->size() != batch.size())
+                d.ridMisaligned = true;
+            else
+                for (auto& r : *rids) {
+                    d.ridInts.push_back(adapter::RidToInt(r));
+                    d.rids.push_back(r);
+                }
         }
-        for (auto& t : batch) d.ids.push_back(*adapter::DecodeInt(t, schema, 0));
+        for (auto& t : batch)
+            d.ids.push_back(*adapter::DecodeInt(t, schema, 0));
     }
     return d;
 }
@@ -491,7 +505,8 @@ static std::unique_ptr<FilterExecutor> MakeFilter(ExecutorContext* ctx,
                                                   const optimizer::PhysicalFilter& plan,
                                                   const std::vector<Row>& rows, size_t chunk,
                                                   bool honourRids = true) {
-    auto src = std::make_unique<ScriptedSource>(ctx, adapter::TwoColSchema(), rows, chunk, honourRids);
+    auto src =
+        std::make_unique<ScriptedSource>(ctx, adapter::TwoColSchema(), rows, chunk, honourRids);
     return std::make_unique<FilterExecutor>(ctx, plan, std::move(src));
 }
 
@@ -505,9 +520,9 @@ TEST(FilterTest, NoRowsLostAcrossBatchBoundaries) {
     ASSERT_LT(expected.size(), 700u);
 
     auto plan = adapter::PredGE(50);
-    auto ctx  = adapter::MakeCtx(5);
-    auto f    = MakeFilter(ctx.get(), *plan, rows, 7);
-    auto got  = Drain(*f, false);
+    auto ctx = adapter::MakeCtx(5);
+    auto f = MakeFilter(ctx.get(), *plan, rows, 7);
+    auto got = Drain(*f, false);
 
     EXPECT_EQ(got.ids, expected);
     EXPECT_EQ(std::set<int32_t>(got.ids.begin(), got.ids.end()).size(), got.ids.size())
@@ -515,13 +530,13 @@ TEST(FilterTest, NoRowsLostAcrossBatchBoundaries) {
 }
 
 TEST(FilterTest, ResultIdenticalAcrossAllBatchSizes) {
-    auto rows     = MakeRows(257);
+    auto rows = MakeRows(257);
     auto expected = OracleGE(rows, 50);
-    auto plan     = adapter::PredGE(50);
+    auto plan = adapter::PredGE(50);
     for (size_t outBatch : {1u, 2u, 3u, 7u, 64u, 256u, 257u, 1024u})
         for (size_t chunk : {1u, 2u, 5u, 7u, 100u, 1024u}) {
             auto ctx = adapter::MakeCtx(outBatch);
-            auto f   = MakeFilter(ctx.get(), *plan, rows, chunk);
+            auto f = MakeFilter(ctx.get(), *plan, rows, chunk);
             EXPECT_EQ(Drain(*f, false).ids, expected)
                 << "outBatch=" << outBatch << " chunk=" << chunk;
         }
@@ -532,7 +547,7 @@ TEST(FilterTest, OutputBatchNeverExceedsBatchSize) {
     auto plan = adapter::PredGE(0);
     for (size_t outBatch : {1u, 3u, 7u, 50u}) {
         auto ctx = adapter::MakeCtx(outBatch);
-        auto f   = MakeFilter(ctx.get(), *plan, rows, 64);
+        auto f = MakeFilter(ctx.get(), *plan, rows, 64);
         EXPECT_LE(Drain(*f, false).maxBatch, outBatch) << "outBatch=" << outBatch;
     }
 }
@@ -540,34 +555,38 @@ TEST(FilterTest, OutputBatchNeverExceedsBatchSize) {
 TEST(FilterTest, NullPredicateExcludesRow) {
     auto rows = MakeRows(700);
     auto plan = adapter::PredGE(0);
-    auto ctx  = adapter::MakeCtx(16);
-    auto f    = MakeFilter(ctx.get(), *plan, rows, 9);
-    auto got  = Drain(*f, false);
+    auto ctx = adapter::MakeCtx(16);
+    auto f = MakeFilter(ctx.get(), *plan, rows, 9);
+    auto got = Drain(*f, false);
     EXPECT_EQ(got.ids, OracleGE(rows, 0));
-    for (int32_t id : got.ids) EXPECT_NE(id % 7, 3) << "a NULL-valued row leaked through";
+    for (int32_t id : got.ids)
+        EXPECT_NE(id % 7, 3) << "a NULL-valued row leaked through";
 }
 
 TEST(FilterTest, TruePlusFalsePartitionLeavesNullsOut) {
     auto rows = MakeRows(700);
-    auto ge   = adapter::PredGE(50);
-    auto lt   = adapter::PredLT(50);
-    auto ctx  = adapter::MakeCtx(11);
-    auto a    = Drain(*MakeFilter(ctx.get(), *ge, rows, 13), false).ids;
-    auto b    = Drain(*MakeFilter(ctx.get(), *lt, rows, 13), false).ids;
+    auto ge = adapter::PredGE(50);
+    auto lt = adapter::PredLT(50);
+    auto ctx = adapter::MakeCtx(11);
+    auto a = Drain(*MakeFilter(ctx.get(), *ge, rows, 13), false).ids;
+    auto b = Drain(*MakeFilter(ctx.get(), *lt, rows, 13), false).ids;
     size_t nonNull = 0;
-    for (auto& r : rows) if (r.v) ++nonNull;
+    for (auto& r : rows)
+        if (r.v)
+            ++nonNull;
     EXPECT_EQ(a.size() + b.size(), nonNull);
     EXPECT_EQ(a, OracleGE(rows, 50));
     EXPECT_EQ(b, OracleLT(rows, 50));
     std::set<int32_t> sa(a.begin(), a.end());
-    for (int32_t id : b) EXPECT_EQ(sa.count(id), 0u) << "row in both partitions";
+    for (int32_t id : b)
+        EXPECT_EQ(sa.count(id), 0u) << "row in both partitions";
 }
 
 TEST(FilterTest, WorksWithoutRids) {
     auto rows = MakeRows(400);
     auto plan = adapter::PredGE(50);
-    auto ctx  = adapter::MakeCtx(4);
-    auto f    = MakeFilter(ctx.get(), *plan, rows, 9);
+    auto ctx = adapter::MakeCtx(4);
+    auto f = MakeFilter(ctx.get(), *plan, rows, 9);
     EXPECT_EQ(Drain(*f, /*wantRids=*/false).ids, OracleGE(rows, 50));
 }
 
@@ -576,7 +595,7 @@ TEST(FilterTest, RidsStayAlignedWithTuples) {
     auto plan = adapter::PredGE(50);
     for (size_t outBatch : {1u, 3u, 7u, 64u}) {
         auto ctx = adapter::MakeCtx(outBatch);
-        auto f   = MakeFilter(ctx.get(), *plan, rows, 5);
+        auto f = MakeFilter(ctx.get(), *plan, rows, 5);
         auto got = Drain(*f, /*wantRids=*/true);
         EXPECT_FALSE(got.ridMisaligned) << "outBatch=" << outBatch;
         EXPECT_EQ(got.ridInts, got.ids) << "RID != row id at some position, outBatch=" << outBatch;
@@ -587,8 +606,8 @@ TEST(FilterTest, RidsStayAlignedWithTuples) {
 TEST(FilterTest, OutputsAreClearedOnEveryCall) {
     auto rows = MakeRows(50);
     auto plan = adapter::PredGE(50);
-    auto ctx  = adapter::MakeCtx(3);
-    auto f    = MakeFilter(ctx.get(), *plan, rows, 4);
+    auto ctx = adapter::MakeCtx(3);
+    auto f = MakeFilter(ctx.get(), *plan, rows, 4);
     f->Init();
     std::vector<storage::Tuple> batch;
     std::optional<std::vector<storage::RID>> rids = std::vector<storage::RID>{};
@@ -605,8 +624,8 @@ TEST(FilterTest, OutputsAreClearedOnEveryCall) {
 TEST(FilterTest, NextAfterExhaustionKeepsReturningFalse) {
     auto rows = MakeRows(40);
     auto plan = adapter::PredGE(50);
-    auto ctx  = adapter::MakeCtx(3);
-    auto f    = MakeFilter(ctx.get(), *plan, rows, 5);
+    auto ctx = adapter::MakeCtx(3);
+    auto f = MakeFilter(ctx.get(), *plan, rows, 5);
     Drain(*f, false);
     for (int i = 0; i < 3; ++i) {
         std::vector<storage::Tuple> b;
@@ -619,14 +638,14 @@ TEST(FilterTest, NextAfterExhaustionKeepsReturningFalse) {
 TEST(FilterTest, InitMidScanThenRerunMatchesFreshRun) {
     auto rows = MakeRows(300);
     auto plan = adapter::PredGE(50);
-    auto ctx  = adapter::MakeCtx(5);
-    auto f    = MakeFilter(ctx.get(), *plan, rows, 64);
+    auto ctx = adapter::MakeCtx(5);
+    auto f = MakeFilter(ctx.get(), *plan, rows, 64);
     f->Init();
     std::vector<storage::Tuple> b;
     std::optional<std::vector<storage::RID>> r;
     ASSERT_TRUE(f->Next(&b, r));
 
-    auto second = Drain(*f, false);   // Drain calls Init()
+    auto second = Drain(*f, false);  // Drain calls Init()
     EXPECT_EQ(second.ids, OracleGE(rows, 50));
 }
 
@@ -639,7 +658,7 @@ TEST(FilterTest, SelectivityExtremesAndEmptyChild) {
     }
     {
         auto rows = MakeRows(100);
-        auto all  = adapter::PredGE(0);
+        auto all = adapter::PredGE(0);
         EXPECT_EQ(Drain(*MakeFilter(ctx.get(), *all, rows, 7), false).ids, OracleGE(rows, 0));
     }
     {
@@ -655,8 +674,8 @@ TEST(FilterTest, SelectivityExtremesAndEmptyChild) {
 TEST(FilterTest, ChildThatIgnoresRidRequestIsRejected) {
     auto rows = MakeRows(50);
     auto plan = adapter::PredGE(50);
-    auto ctx  = adapter::MakeCtx(4);
-    auto f    = MakeFilter(ctx.get(), *plan, rows, 5, /*honourRids=*/false);
+    auto ctx = adapter::MakeCtx(4);
+    auto f = MakeFilter(ctx.get(), *plan, rows, 5, /*honourRids=*/false);
     f->Init();
     std::vector<storage::Tuple> b;
     std::optional<std::vector<storage::RID>> r = std::vector<storage::RID>{};
@@ -675,7 +694,8 @@ TEST(FilterTest, ChildThatIgnoresRidRequestIsRejected) {
 
 static std::vector<Row> RowsWithSingleMatchAt(int n, int pos) {
     std::vector<Row> rows;
-    for (int i = 0; i < n; ++i) rows.push_back({i, i == pos ? 60 : 0});  // only `pos` has v >= 50
+    for (int i = 0; i < n; ++i)
+        rows.push_back({i, i == pos ? 60 : 0});  // only `pos` has v >= 50
     return rows;
 }
 
@@ -688,7 +708,7 @@ TEST(FilterTest, SingleMatchIsFoundWhereverItSits) {
         for (size_t outBatch : {1u, 3u, 64u})
             for (size_t chunk : {1u, 7u, 64u, 500u}) {
                 auto ctx = adapter::MakeCtx(outBatch);
-                auto f   = MakeFilter(ctx.get(), *plan, rows, chunk);
+                auto f = MakeFilter(ctx.get(), *plan, rows, chunk);
                 EXPECT_EQ(Drain(*f, false).ids, std::vector<int32_t>{pos})
                     << "pos=" << pos << " outBatch=" << outBatch << " chunk=" << chunk;
             }
@@ -700,12 +720,13 @@ TEST(FilterTest, SingleMatchIsFoundWhereverItSits) {
 TEST(FilterTest, NoPredicatePassesEveryRow) {
     auto rows = MakeRows(300);
     std::vector<int32_t> all;
-    for (auto& r : rows) all.push_back(r.id);
+    for (auto& r : rows)
+        all.push_back(r.id);
 
     auto plan = std::make_unique<optimizer::PhysicalFilter>();  // predicate left null
     for (size_t outBatch : {1u, 3u, 1024u}) {
         auto ctx = adapter::MakeCtx(outBatch);
-        auto f   = MakeFilter(ctx.get(), *plan, rows, 5);
+        auto f = MakeFilter(ctx.get(), *plan, rows, 5);
         EXPECT_EQ(Drain(*f, false).ids, all) << "outBatch=" << outBatch;
     }
 }
@@ -715,15 +736,18 @@ TEST(FilterTest, NoPredicatePassesEveryRow) {
 TEST(FilterTest, TwoStackedFiltersMatchOracleWithAlignedRids) {
     auto rows = MakeRows(600);
     std::vector<int32_t> expected;
-    for (auto& r : rows) if (r.v && *r.v >= 25 && *r.v < 75) expected.push_back(r.id);
+    for (auto& r : rows)
+        if (r.v && *r.v >= 25 && *r.v < 75)
+            expected.push_back(r.id);
     ASSERT_GT(expected.size(), 100u);
 
     auto ge = adapter::PredGE(25);
     auto lt = adapter::PredLT(75);
     for (size_t outBatch : {1u, 3u, 7u, 64u})
         for (size_t chunk : {2u, 5u, 13u}) {
-            auto ctx   = adapter::MakeCtx(outBatch);
-            auto src   = std::make_unique<ScriptedSource>(ctx.get(), adapter::TwoColSchema(), rows, chunk);
+            auto ctx = adapter::MakeCtx(outBatch);
+            auto src =
+                std::make_unique<ScriptedSource>(ctx.get(), adapter::TwoColSchema(), rows, chunk);
             auto inner = std::make_unique<FilterExecutor>(ctx.get(), *ge, std::move(src));
             FilterExecutor outer(ctx.get(), *lt, std::move(inner));
             auto got = Drain(outer, /*wantRids=*/true);
@@ -737,22 +761,27 @@ TEST(FilterTest, TwoStackedFiltersMatchOracleWithAlignedRids) {
 // not share leftover state (the old queue lived at namespace scope).
 TEST(FilterTest, InterleavedInstancesDoNotShareState) {
     auto rows = MakeRows(400);
-    auto geP  = adapter::PredGE(50);
-    auto ltP  = adapter::PredLT(50);
-    auto ctx  = adapter::MakeCtx(3);
-    auto a    = MakeFilter(ctx.get(), *geP, rows, 5);
-    auto b    = MakeFilter(ctx.get(), *ltP, rows, 5);
+    auto geP = adapter::PredGE(50);
+    auto ltP = adapter::PredLT(50);
+    auto ctx = adapter::MakeCtx(3);
+    auto a = MakeFilter(ctx.get(), *geP, rows, 5);
+    auto b = MakeFilter(ctx.get(), *ltP, rows, 5);
     a->Init();
     b->Init();
 
     std::vector<int32_t> ga, gb;
     bool doneA = false, doneB = false;
     auto pull = [&](FilterExecutor& f, std::vector<int32_t>& out, bool& done) {
-        if (done) return;
+        if (done)
+            return;
         std::vector<storage::Tuple> t;
         std::optional<std::vector<storage::RID>> none;
-        if (!f.Next(&t, none)) { done = true; return; }
-        for (auto& x : t) out.push_back(*adapter::DecodeInt(x, f.GetOutputSchema(), 0));
+        if (!f.Next(&t, none)) {
+            done = true;
+            return;
+        }
+        for (auto& x : t)
+            out.push_back(*adapter::DecodeInt(x, f.GetOutputSchema(), 0));
     };
     for (int guard = 0; (!doneA || !doneB) && guard < 100000; ++guard) {
         pull(*a, ga, doneA);
@@ -767,9 +796,10 @@ TEST(FilterTest, InterleavedInstancesDoNotShareState) {
 // (If you choose a different policy, change this test and document the policy.)
 TEST(FilterTest, SwitchingToRidsMidBatchIsRejected) {
     auto rows = MakeRows(200);
-    auto plan = adapter::PredGE(0);  // passes every non-NULL row: output fills, remainder stays pending
-    auto ctx  = adapter::MakeCtx(4);
-    auto f    = MakeFilter(ctx.get(), *plan, rows, 64);
+    auto plan =
+        adapter::PredGE(0);  // passes every non-NULL row: output fills, remainder stays pending
+    auto ctx = adapter::MakeCtx(4);
+    auto f = MakeFilter(ctx.get(), *plan, rows, 64);
     f->Init();
     std::vector<storage::Tuple> b;
     std::optional<std::vector<storage::RID>> none;
@@ -791,9 +821,9 @@ static std::unique_ptr<ProjectionExecutor> MakeProj(ExecutorContext* ctx,
 }
 
 TEST(ProjectionTest, OutputSchemaMatchesProjectionList) {
-    auto plan     = adapter::ProjIdVIdPlus1000();
-    auto ctx      = adapter::MakeCtx(8);
-    auto p        = MakeProj(ctx.get(), *plan, MakeRows(5), 3);
+    auto plan = adapter::ProjIdVIdPlus1000();
+    auto ctx = adapter::MakeCtx(8);
+    auto p = MakeProj(ctx.get(), *plan, MakeRows(5), 3);
     auto expected = adapter::ProjOutSchema();
     ASSERT_EQ(p->GetOutputSchema().ColumnCount(), expected.ColumnCount());
     for (size_t i = 0; i < expected.ColumnCount(); ++i) {
@@ -807,7 +837,7 @@ TEST(ProjectionTest, ComputedExpressionColumn) {
     auto plan = adapter::ProjIdVIdPlus1000();
     for (size_t chunk : {1u, 7u, 1024u}) {
         auto ctx = adapter::MakeCtx(8);
-        auto p   = MakeProj(ctx.get(), *plan, rows, chunk);
+        auto p = MakeProj(ctx.get(), *plan, rows, chunk);
         p->Init();
         const auto& s = p->GetOutputSchema();
         size_t i = 0;
@@ -828,10 +858,11 @@ TEST(ProjectionTest, ComputedExpressionColumn) {
 
 TEST(ProjectionTest, NullsSurviveProjection) {
     std::vector<Row> rows;
-    for (int i = 0; i < 30; ++i) rows.push_back({i, std::nullopt});
+    for (int i = 0; i < 30; ++i)
+        rows.push_back({i, std::nullopt});
     auto plan = adapter::ProjIdVIdPlus1000();
-    auto ctx  = adapter::MakeCtx(4);
-    auto p    = MakeProj(ctx.get(), *plan, rows, 7);
+    auto ctx = adapter::MakeCtx(4);
+    auto p = MakeProj(ctx.get(), *plan, rows, 7);
     p->Init();
     std::vector<storage::Tuple> b;
     std::optional<std::vector<storage::RID>> none;
@@ -848,8 +879,8 @@ TEST(ProjectionTest, NullsSurviveProjection) {
 // a PARTIAL RID list. Policy (throw or leave empty) is up to the implementation.
 TEST(ProjectionTest, RequestingRidsNeverReturnsMisalignedRids) {
     auto plan = adapter::ProjIdVIdPlus1000();
-    auto ctx  = adapter::MakeCtx(8);
-    auto p    = MakeProj(ctx.get(), *plan, MakeRows(20), 5);
+    auto ctx = adapter::MakeCtx(8);
+    auto p = MakeProj(ctx.get(), *plan, MakeRows(20), 5);
     p->Init();
     std::vector<storage::Tuple> b;
     std::optional<std::vector<storage::RID>> r = std::vector<storage::RID>{};
@@ -865,8 +896,8 @@ TEST(ProjectionTest, RequestingRidsNeverReturnsMisalignedRids) {
 // An empty child must end the stream immediately and stay ended.
 TEST(ProjectionTest, EmptyChildTerminatesAndStaysTerminated) {
     auto plan = adapter::ProjIdVIdPlus1000();
-    auto ctx  = adapter::MakeCtx(8);
-    auto p    = MakeProj(ctx.get(), *plan, {}, 5);
+    auto ctx = adapter::MakeCtx(8);
+    auto p = MakeProj(ctx.get(), *plan, {}, 5);
     p->Init();
     for (int i = 0; i < 3; ++i) {
         std::vector<storage::Tuple> b;
@@ -886,12 +917,14 @@ static std::unique_ptr<SeqScanExecutor> MakeScan(adapter::TestDb& db,
 
 static std::optional<int32_t> DecodeId(const storage::Tuple& t, const storage::Schema& s) {
     auto vals = storage::Tuple::Deserialize(s, t.Span());
-    if (vals[0].IsNull()) return std::nullopt;
+    if (vals[0].IsNull())
+        return std::nullopt;
     return vals[0].AsInt32();
 }
 static std::optional<int32_t> DecodeV(const storage::Tuple& t, const storage::Schema& s) {
     auto vals = storage::Tuple::Deserialize(s, t.Span());
-    if (vals[1].IsNull()) return std::nullopt;
+    if (vals[1].IsNull())
+        return std::nullopt;
     return vals[1].AsInt32();
 }
 
@@ -902,7 +935,8 @@ static Drained DrainScan(SeqScanExecutor& scan, bool wantRids) {
     for (int guard = 0; guard < 1'000'000; ++guard) {
         std::vector<storage::Tuple> batch;
         std::optional<std::vector<storage::RID>> rids;
-        if (wantRids) rids = std::vector<storage::RID>{};
+        if (wantRids)
+            rids = std::vector<storage::RID>{};
         if (!scan.Next(&batch, rids)) {
             EXPECT_TRUE(batch.empty());
             break;
@@ -910,13 +944,16 @@ static Drained DrainScan(SeqScanExecutor& scan, bool wantRids) {
         ++d.calls;
         d.maxBatch = std::max(d.maxBatch, batch.size());
         if (wantRids) {
-            if (!rids.has_value() || rids->size() != batch.size()) d.ridMisaligned = true;
-            else for (auto& r : *rids) {
-                d.ridInts.push_back(adapter::RidToInt(r));
-                d.rids.push_back(r);
-            }
+            if (!rids.has_value() || rids->size() != batch.size())
+                d.ridMisaligned = true;
+            else
+                for (auto& r : *rids) {
+                    d.ridInts.push_back(adapter::RidToInt(r));
+                    d.rids.push_back(r);
+                }
         }
-        for (auto& t : batch) d.ids.push_back(*DecodeId(t, schema));
+        for (auto& t : batch)
+            d.ids.push_back(*DecodeId(t, schema));
     }
     return d;
 }
@@ -938,15 +975,16 @@ static void ExpectRidsAreTheRowsOwn(const adapter::TestDb& db, const Drained& go
 
 TEST(SeqScanTest, ReturnsEveryLiveRowInRidOrderUnderEviction) {
     auto rows = MakeRows(2000);
-    auto db   = adapter::BuildDb(rows, /*poolFrames=*/4);
+    auto db = adapter::BuildDb(rows, /*poolFrames=*/4);
     ASSERT_GE(adapter::TablePageCount(*db), 40u) << "fixture too small to force eviction";
     for (size_t batch : {1u, 3u, 7u, 1024u}) {
         adapter::Rebatch(*db, batch);
         auto plan = adapter::ScanPlan(*db);
         auto scan = MakeScan(*db, *plan);
-        auto got  = DrainScan(*scan, /*wantRids=*/true);
+        auto got = DrainScan(*scan, /*wantRids=*/true);
         std::vector<int32_t> allIds;
-        for (auto& r : rows) allIds.push_back(r.id);
+        for (auto& r : rows)
+            allIds.push_back(r.id);
         EXPECT_EQ(got.ids, allIds) << "batch=" << batch;
         ExpectRidsAreTheRowsOwn(*db, got, "scan batch=" + std::to_string(batch));
     }
@@ -954,27 +992,32 @@ TEST(SeqScanTest, ReturnsEveryLiveRowInRidOrderUnderEviction) {
 
 TEST(SeqScanTest, SkipsTombstones) {
     auto rows = MakeRows(1500);
-    auto db   = adapter::BuildDb(rows, 4);
+    auto db = adapter::BuildDb(rows, 4);
     std::vector<size_t> del;
-    std::set<int32_t>   deleted;
-    for (size_t i = 0; i < rows.size(); i += 3) { del.push_back(i); deleted.insert(rows[i].id); }
+    std::set<int32_t> deleted;
+    for (size_t i = 0; i < rows.size(); i += 3) {
+        del.push_back(i);
+        deleted.insert(rows[i].id);
+    }
     adapter::DeleteRows(*db, del);
 
     std::vector<int32_t> expected;
-    for (auto& r : rows) if (!deleted.count(r.id)) expected.push_back(r.id);
+    for (auto& r : rows)
+        if (!deleted.count(r.id))
+            expected.push_back(r.id);
 
     for (size_t batch : {1u, 5u, 1024u}) {
         adapter::Rebatch(*db, batch);
         auto plan = adapter::ScanPlan(*db);
         auto scan = MakeScan(*db, *plan);
-        auto got  = DrainScan(*scan, /*wantRids=*/true);
+        auto got = DrainScan(*scan, /*wantRids=*/true);
         EXPECT_EQ(got.ids, expected) << "batch=" << batch;
         ExpectRidsAreTheRowsOwn(*db, got, "tombstones batch=" + std::to_string(batch));
     }
 }
 
 TEST(SeqScanTest, EmptyTableTerminatesImmediately) {
-    auto db   = adapter::BuildDb({}, 4);
+    auto db = adapter::BuildDb({}, 4);
     adapter::Rebatch(*db, 8);
     auto plan = adapter::ScanPlan(*db);
     auto scan = MakeScan(*db, *plan);
@@ -988,11 +1031,11 @@ TEST(SeqScanTest, EmptyTableTerminatesImmediately) {
 
 TEST(SeqScanTest, ReinitRestartsTheScan) {
     auto rows = MakeRows(300);
-    auto db   = adapter::BuildDb(rows, 4);
+    auto db = adapter::BuildDb(rows, 4);
     adapter::Rebatch(*db, 7);
-    auto plan   = adapter::ScanPlan(*db);
-    auto scan   = MakeScan(*db, *plan);
-    auto first  = DrainScan(*scan, false);
+    auto plan = adapter::ScanPlan(*db);
+    auto scan = MakeScan(*db, *plan);
+    auto first = DrainScan(*scan, false);
     auto second = DrainScan(*scan, false);
     EXPECT_EQ(first.ids.size(), rows.size());
     EXPECT_EQ(second.ids, first.ids);
@@ -1000,7 +1043,7 @@ TEST(SeqScanTest, ReinitRestartsTheScan) {
 
 TEST(SeqScanTest, TuplesOwnTheirBytesAfterEviction) {
     auto rows = MakeRows(2000);
-    auto db   = adapter::BuildDb(rows, 4);
+    auto db = adapter::BuildDb(rows, 4);
     ASSERT_GE(adapter::TablePageCount(*db), 40u);
     adapter::Rebatch(*db, 16);
     auto plan = adapter::ScanPlan(*db);
@@ -1010,7 +1053,8 @@ TEST(SeqScanTest, TuplesOwnTheirBytesAfterEviction) {
     std::vector<storage::Tuple> b;
     std::optional<std::vector<storage::RID>> none;
     while (scan->Next(&b, none))
-        for (auto& t : b) kept.push_back(std::move(t));
+        for (auto& t : b)
+            kept.push_back(std::move(t));
 
     ASSERT_EQ(kept.size(), rows.size());
     const auto& s = scan->GetOutputSchema();
@@ -1023,17 +1067,16 @@ TEST(SeqScanTest, TuplesOwnTheirBytesAfterEviction) {
 
 // ---- Shared plan builders for the 3-column real table -----------------------
 static std::unique_ptr<optimizer::PhysicalFilter> RealFilterPlan(const adapter::TestDb& db) {
-    auto pred = adapter::MakeBinaryOp(
-        parser::ast::BinaryOperator::GREATER_EQUAL,
-        adapter::MakeColRef(1, storage::ColumnType::INT32),
-        adapter::MakeLitInt32(50));
+    auto pred = adapter::MakeBinaryOp(parser::ast::BinaryOperator::GREATER_EQUAL,
+                                      adapter::MakeColRef(1, storage::ColumnType::INT32),
+                                      adapter::MakeLitInt32(50));
     auto plan = std::make_unique<optimizer::PhysicalFilter>();
     plan->predicate = std::move(pred);
     for (size_t i = 0; i < db.schema.ColumnCount(); ++i) {
         optimizer::OutputColumn oc;
-        oc.name        = db.schema.columns[i].name;
-        oc.type        = db.schema.columns[i].type;
-        oc.tableId     = 0;
+        oc.name = db.schema.columns[i].name;
+        oc.type = db.schema.columns[i].type;
+        oc.tableId = 0;
         oc.columnIndex = static_cast<uint32_t>(i);
         plan->outputSchema.push_back(std::move(oc));
     }
@@ -1057,16 +1100,14 @@ static std::unique_ptr<optimizer::PhysicalProject> RealProjPlan() {
     {
         optimizer::ProjectColumn pc;
         pc.name = "id_plus_1000";
-        pc.expr = adapter::MakeBinaryOp(
-            parser::ast::BinaryOperator::ADD,
-            adapter::MakeColRef(0, storage::ColumnType::INT32),
-            adapter::MakeLitInt32(1000),
-            storage::ColumnType::INT32);
+        pc.expr = adapter::MakeBinaryOp(parser::ast::BinaryOperator::ADD,
+                                        adapter::MakeColRef(0, storage::ColumnType::INT32),
+                                        adapter::MakeLitInt32(1000), storage::ColumnType::INT32);
         plan->projections.push_back(std::move(pc));
     }
     plan->outputSchema = {
-        optimizer::OutputColumn{"id",           storage::ColumnType::INT32, 0, 0},
-        optimizer::OutputColumn{"v",            storage::ColumnType::INT32, 0, 1},
+        optimizer::OutputColumn{"id", storage::ColumnType::INT32, 0, 0},
+        optimizer::OutputColumn{"v", storage::ColumnType::INT32, 0, 1},
         optimizer::OutputColumn{"id_plus_1000", storage::ColumnType::INT32, 0, 0},
     };
     return plan;
@@ -1078,24 +1119,28 @@ static std::unique_ptr<optimizer::PhysicalProject> RealProjPlan() {
 // page, so a shifted or stale slot cannot hide behind page_id alone.
 TEST(ExecutorPipelineP42, RealHeapScanFilterKeepsCorrectRids) {
     auto rows = MakeRows(2500);
-    auto db   = adapter::BuildDb(rows, /*poolFrames=*/4);
+    auto db = adapter::BuildDb(rows, /*poolFrames=*/4);
     ASSERT_GE(adapter::TablePageCount(*db), 40u);
 
     std::vector<size_t> del;
-    std::set<int32_t>   deleted;
-    for (size_t i = 5; i < rows.size(); i += 11) { del.push_back(i); deleted.insert(rows[i].id); }
+    std::set<int32_t> deleted;
+    for (size_t i = 5; i < rows.size(); i += 11) {
+        del.push_back(i);
+        deleted.insert(rows[i].id);
+    }
     adapter::DeleteRows(*db, del);
 
     std::vector<int32_t> expected;
     for (auto& r : rows)
-        if (!deleted.count(r.id) && r.v && *r.v >= 50) expected.push_back(r.id);
+        if (!deleted.count(r.id) && r.v && *r.v >= 50)
+            expected.push_back(r.id);
     ASSERT_GT(expected.size(), 500u);
 
     for (size_t batch : {1u, 3u, 7u, 100u, 1024u}) {
         adapter::Rebatch(*db, batch);
-        auto scanPlan   = adapter::ScanPlan(*db);
+        auto scanPlan = adapter::ScanPlan(*db);
         auto filterPlan = RealFilterPlan(*db);
-        auto scan   = std::make_unique<SeqScanExecutor>(db->ctx.get(), *scanPlan);
+        auto scan = std::make_unique<SeqScanExecutor>(db->ctx.get(), *scanPlan);
         FilterExecutor filter(db->ctx.get(), *filterPlan, std::move(scan));
 
         auto got = Drain(filter, /*wantRids=*/true);
@@ -1107,28 +1152,32 @@ TEST(ExecutorPipelineP42, RealHeapScanFilterKeepsCorrectRids) {
 // ---- Milestone: Scan -> Filter -> Projection on real files ------------------
 TEST(ExecutorMilestoneP42, ScanFilterProjectMatchesOracleFromDisk) {
     auto rows = MakeRows(2500);
-    auto db   = adapter::BuildDb(rows, /*poolFrames=*/4);
+    auto db = adapter::BuildDb(rows, /*poolFrames=*/4);
     ASSERT_GE(adapter::TablePageCount(*db), 40u);
 
     std::vector<size_t> del;
-    std::set<int32_t>   deleted;
-    for (size_t i = 5; i < rows.size(); i += 11) { del.push_back(i); deleted.insert(rows[i].id); }
+    std::set<int32_t> deleted;
+    for (size_t i = 5; i < rows.size(); i += 11) {
+        del.push_back(i);
+        deleted.insert(rows[i].id);
+    }
     adapter::DeleteRows(*db, del);
 
     std::vector<int32_t> expected;
     for (auto& r : rows)
-        if (!deleted.count(r.id) && r.v && *r.v >= 50) expected.push_back(r.id);
+        if (!deleted.count(r.id) && r.v && *r.v >= 50)
+            expected.push_back(r.id);
     ASSERT_GT(expected.size(), 500u);
 
     storage::Schema projSchema = adapter::ProjOutSchema();
 
     for (size_t batch : {1u, 3u, 7u, 100u, 1024u}) {
         adapter::Rebatch(*db, batch);
-        auto scanPlan   = adapter::ScanPlan(*db);
+        auto scanPlan = adapter::ScanPlan(*db);
         auto filterPlan = RealFilterPlan(*db);
-        auto projPlan   = RealProjPlan();
+        auto projPlan = RealProjPlan();
 
-        auto scan   = std::make_unique<SeqScanExecutor>(db->ctx.get(), *scanPlan);
+        auto scan = std::make_unique<SeqScanExecutor>(db->ctx.get(), *scanPlan);
         auto filter = std::make_unique<FilterExecutor>(db->ctx.get(), *filterPlan, std::move(scan));
         ProjectionExecutor proj(db->ctx.get(), *projPlan, std::move(filter));
 
@@ -1143,7 +1192,8 @@ TEST(ExecutorMilestoneP42, ScanFilterProjectMatchesOracleFromDisk) {
                 gotPlus.push_back(vals[2].AsInt32());
             }
         EXPECT_EQ(gotIds, expected) << "batch=" << batch;
-        for (size_t i = 0; i < gotIds.size(); ++i) ASSERT_EQ(gotPlus[i], gotIds[i] + 1000);
+        for (size_t i = 0; i < gotIds.size(); ++i)
+            ASSERT_EQ(gotPlus[i], gotIds[i] + 1000);
     }
 }
 
@@ -1158,10 +1208,10 @@ std::vector<std::vector<std::optional<int32_t>>> RunSql(TestDb& db, const std::s
 }
 TEST(ExecutorMilestoneP42, SelectWithWhereReturnsCorrectRowsFromDisk) {
     auto rows = MakeRows(2000);
-    auto db   = adapter::BuildDb(rows, 4);
+    auto db = adapter::BuildDb(rows, 4);
     for (size_t batch : {1u, 7u, 1024u}) {
         adapter::Rebatch(*db, batch);
-        auto result   = adapter::RunSql(*db, "SELECT id, v FROM t WHERE v >= 50;");
+        auto result = adapter::RunSql(*db, "SELECT id, v FROM t WHERE v >= 50;");
         auto expected = OracleGE(rows, 50);
         ASSERT_EQ(result.size(), expected.size()) << "batch=" << batch;
         for (size_t i = 0; i < expected.size(); ++i) {

@@ -9,18 +9,18 @@ using namespace AxolotlDB::parser::ast;
 
 namespace {
 
-Statement Parse(std::string_view sql)
-{
+Statement Parse(std::string_view sql) {
     utils::DiagnosticSink sink;
     Parser parser(sql, sink);
     return parser.Parse();
 }
 
-}
+}  // namespace
 
-TEST(ParserTest, CreateTableWithAllColumnTypes)
-{
-    std::string sql = "CREATE TABLE t (id INT32 PRIMARY KEY, name VARCHAR(64), active BOOLEAN, price FLOAT64 NOT NULL);";
+TEST(ParserTest, CreateTableWithAllColumnTypes) {
+    std::string sql =
+        "CREATE TABLE t (id INT32 PRIMARY KEY, name VARCHAR(64), active BOOLEAN, price FLOAT64 NOT "
+        "NULL);";
     Statement stmt = Parse(sql);
 
     ASSERT_TRUE(std::holds_alternative<CreateTableStatement>(stmt.node));
@@ -45,8 +45,7 @@ TEST(ParserTest, CreateTableWithAllColumnTypes)
     EXPECT_TRUE(create.columns[3].isNotNull);
 }
 
-TEST(ParserTest, VectorColumnCarriesDimension)
-{
+TEST(ParserTest, VectorColumnCarriesDimension) {
     std::string sql = "CREATE TABLE items (emb VECTOR(768));";
     Statement stmt = Parse(sql);
 
@@ -59,8 +58,7 @@ TEST(ParserTest, VectorColumnCarriesDimension)
     EXPECT_EQ(*create.columns[0].typeSize, 768u);
 }
 
-TEST(ParserTest, InsertMultipleValueTuples)
-{
+TEST(ParserTest, InsertMultipleValueTuples) {
     std::string sql = "INSERT INTO t (id, name) VALUES (1, 'a'), (2, 'b');";
     Statement stmt = Parse(sql);
 
@@ -77,8 +75,7 @@ TEST(ParserTest, InsertMultipleValueTuples)
     EXPECT_EQ(insert.valueRows[1].size(), 2u);
 }
 
-TEST(ParserTest, InsertArityMismatchIsParsedNotRejected)
-{
+TEST(ParserTest, InsertArityMismatchIsParsedNotRejected) {
     std::string sql = "INSERT INTO t (id, name) VALUES (1);";
     Statement stmt = Parse(sql);
 
@@ -90,8 +87,7 @@ TEST(ParserTest, InsertArityMismatchIsParsedNotRejected)
     EXPECT_EQ(insert.valueRows[0].size(), 1u);
 }
 
-TEST(ParserTest, QualifiedColumnReference)
-{
+TEST(ParserTest, QualifiedColumnReference) {
     std::string sql = "SELECT a.id, b.name FROM a;";
     Statement stmt = Parse(sql);
 
@@ -112,8 +108,7 @@ TEST(ParserTest, QualifiedColumnReference)
     EXPECT_EQ(col2.column, "name");
 }
 
-TEST(ParserTest, TableAlias)
-{
+TEST(ParserTest, TableAlias) {
     std::string sql = "SELECT u.id FROM users AS u;";
     Statement stmt = Parse(sql);
 
@@ -125,8 +120,7 @@ TEST(ParserTest, TableAlias)
     EXPECT_EQ(*select.fromTable->alias, "u");
 }
 
-TEST(ParserTest, InnerJoinWithOnCondition)
-{
+TEST(ParserTest, InnerJoinWithOnCondition) {
     std::string sql = "SELECT a.id FROM a JOIN b ON a.id = b.a_id;";
     Statement stmt = Parse(sql);
 
@@ -139,8 +133,7 @@ TEST(ParserTest, InnerJoinWithOnCondition)
     EXPECT_TRUE(std::holds_alternative<BinaryOp>(select.joins[0].onCondition->node));
 }
 
-TEST(ParserTest, FullSelectWithEveryClause)
-{
+TEST(ParserTest, FullSelectWithEveryClause) {
     std::string sql =
         "SELECT a.id, COUNT(*) FROM a JOIN b ON a.id = b.a_id "
         "WHERE a.x > 5 AND b.y = 'z' "
@@ -162,8 +155,7 @@ TEST(ParserTest, FullSelectWithEveryClause)
     ASSERT_NE(select.limit, nullptr);
 }
 
-TEST(ParserTest, ClausesOutOfOrderIsASyntaxError)
-{
+TEST(ParserTest, ClausesOutOfOrderIsASyntaxError) {
     std::string sql = "SELECT a.id FROM a LIMIT 10 WHERE a.x > 5;";
     utils::DiagnosticSink sink;
     Parser parser(sql, sink);
@@ -171,8 +163,7 @@ TEST(ParserTest, ClausesOutOfOrderIsASyntaxError)
     EXPECT_TRUE(sink.hasError());
 }
 
-TEST(ParserTest, AndBindsTighterThanOr)
-{
+TEST(ParserTest, AndBindsTighterThanOr) {
     std::string sql = "SELECT a OR b AND c FROM t;";
     Statement stmt = Parse(sql);
     ASSERT_TRUE(std::holds_alternative<SelectStatement>(stmt.node));
@@ -186,8 +177,7 @@ TEST(ParserTest, AndBindsTighterThanOr)
     EXPECT_EQ(right.biop, BinaryOperator::AND);
 }
 
-TEST(ParserTest, ComparisonBindsTighterThanAnd)
-{
+TEST(ParserTest, ComparisonBindsTighterThanAnd) {
     std::string sql = "SELECT a AND b = c FROM t;";
     Statement stmt = Parse(sql);
     ASSERT_TRUE(std::holds_alternative<SelectStatement>(stmt.node));
@@ -201,8 +191,7 @@ TEST(ParserTest, ComparisonBindsTighterThanAnd)
     EXPECT_EQ(right.biop, BinaryOperator::EQUAL);
 }
 
-TEST(ParserTest, MultiplicationBindsTighterThanAddition)
-{
+TEST(ParserTest, MultiplicationBindsTighterThanAddition) {
     std::string sql = "SELECT a + b * c FROM t;";
     Statement stmt = Parse(sql);
     ASSERT_TRUE(std::holds_alternative<SelectStatement>(stmt.node));
@@ -216,8 +205,7 @@ TEST(ParserTest, MultiplicationBindsTighterThanAddition)
     EXPECT_EQ(right.biop, BinaryOperator::MULTIPLY);
 }
 
-TEST(ParserTest, SubtractionIsLeftAssociative)
-{
+TEST(ParserTest, SubtractionIsLeftAssociative) {
     std::string sql = "SELECT 1 - 2 - 3 FROM t;";
     Statement stmt = Parse(sql);
     ASSERT_TRUE(std::holds_alternative<SelectStatement>(stmt.node));
@@ -233,8 +221,7 @@ TEST(ParserTest, SubtractionIsLeftAssociative)
     EXPECT_EQ(std::get<int64_t>(std::get<Literal>(root.right->node).value), 3);
 }
 
-TEST(ParserTest, ParenthesesOverridePrecedence)
-{
+TEST(ParserTest, ParenthesesOverridePrecedence) {
     std::string sql = "SELECT (a + b) * c FROM t;";
     Statement stmt = Parse(sql);
     ASSERT_TRUE(std::holds_alternative<SelectStatement>(stmt.node));
@@ -248,8 +235,7 @@ TEST(ParserTest, ParenthesesOverridePrecedence)
     EXPECT_EQ(left.biop, BinaryOperator::ADD);
 }
 
-TEST(ParserTest, UnaryMinusBindsTighterThanMultiplication)
-{
+TEST(ParserTest, UnaryMinusBindsTighterThanMultiplication) {
     std::string sql = "SELECT -a * b FROM t;";
     Statement stmt = Parse(sql);
     ASSERT_TRUE(std::holds_alternative<SelectStatement>(stmt.node));
@@ -263,8 +249,7 @@ TEST(ParserTest, UnaryMinusBindsTighterThanMultiplication)
     EXPECT_EQ(left.uop, UnaryOperator::NEGATE);
 }
 
-TEST(ParserTest, CountStarIsDistinctFromCountColumn)
-{
+TEST(ParserTest, CountStarIsDistinctFromCountColumn) {
     std::string sql = "SELECT COUNT(*), COUNT(x) FROM t;";
     Statement stmt = Parse(sql);
     ASSERT_TRUE(std::holds_alternative<SelectStatement>(stmt.node));
@@ -284,8 +269,7 @@ TEST(ParserTest, CountStarIsDistinctFromCountColumn)
     EXPECT_TRUE(std::holds_alternative<ColumnRef>(fn2.args[0]->node));
 }
 
-TEST(ParserTest, MissingFromReportsExpectedFrom)
-{
+TEST(ParserTest, MissingFromReportsExpectedFrom) {
     std::string sql = "SELECT a.id WHERE a.x > 5;";
     utils::DiagnosticSink sink;
     Parser parser(sql, sink);
@@ -309,8 +293,7 @@ TEST(ParserTest, MissingFromReportsExpectedFrom)
     EXPECT_EQ(diags[0].lexem, "WHERE");
 }
 
-TEST(ParserTest, ErrorPositionPointsAtOffendingToken)
-{
+TEST(ParserTest, ErrorPositionPointsAtOffendingToken) {
     {
         std::string sql = "SELECT a.id WHERE a.x > 5;";
         utils::DiagnosticSink sink;
@@ -398,8 +381,7 @@ TEST(ParserTest, ErrorPositionPointsAtOffendingToken)
     }
 }
 
-TEST(ParserTest, RecoversAtStatementBoundary)
-{
+TEST(ParserTest, RecoversAtStatementBoundary) {
     {
         std::string sql = "SELECT a.id WHERE a.x > 5; SELECT b.id FROM b;";
         utils::DiagnosticSink sink;

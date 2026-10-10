@@ -40,25 +40,19 @@ struct BlindP3Test : public ::testing::Test {
         sm = std::make_unique<storage::StorageManager>(32);
         cat = std::make_unique<catalog::Catalog>(*sm);
 
-        cat->CreateTable("users", Schema{{
-            ColumnDef{"id", ColumnType::INT32},
-            ColumnDef{"name", ColumnType::VARCHAR},
-            ColumnDef{"age", ColumnType::INT32},
-            ColumnDef{"score", ColumnType::FLOAT64},
-            ColumnDef{"emb", ColumnType::VECTOR, 4}
-        }});
+        cat->CreateTable(
+            "users",
+            Schema{{ColumnDef{"id", ColumnType::INT32}, ColumnDef{"name", ColumnType::VARCHAR},
+                    ColumnDef{"age", ColumnType::INT32}, ColumnDef{"score", ColumnType::FLOAT64},
+                    ColumnDef{"emb", ColumnType::VECTOR, 4}}});
 
-        cat->CreateTable("orders", Schema{{
-            ColumnDef{"order_id", ColumnType::INT32},
-            ColumnDef{"user_id", ColumnType::INT32},
-            ColumnDef{"amount", ColumnType::FLOAT64}
-        }});
+        cat->CreateTable("orders", Schema{{ColumnDef{"order_id", ColumnType::INT32},
+                                           ColumnDef{"user_id", ColumnType::INT32},
+                                           ColumnDef{"amount", ColumnType::FLOAT64}}});
 
-        cat->CreateTable("items", Schema{{
-            ColumnDef{"item_id", ColumnType::INT32},
-            ColumnDef{"order_id", ColumnType::INT32},
-            ColumnDef{"price", ColumnType::FLOAT64}
-        }});
+        cat->CreateTable("items", Schema{{ColumnDef{"item_id", ColumnType::INT32},
+                                          ColumnDef{"order_id", ColumnType::INT32},
+                                          ColumnDef{"price", ColumnType::FLOAT64}}});
     }
 
     void TearDown() override {
@@ -88,9 +82,8 @@ struct BlindP3Test : public ::testing::Test {
         return planner.Plan(*bound);
     }
 
-    static std::size_t CountNodesOfType(
-        const optimizer::LogicalNode* node,
-        optimizer::LogicalNodeType type) {
+    static std::size_t CountNodesOfType(const optimizer::LogicalNode* node,
+                                        optimizer::LogicalNodeType type) {
         if (node == nullptr) {
             return 0;
         }
@@ -102,8 +95,7 @@ struct BlindP3Test : public ::testing::Test {
         return count;
     }
 
-    static void ExpectSyntaxErrorWithLocation(BlindP3Test* self,
-                                               const std::string& sql) {
+    static void ExpectSyntaxErrorWithLocation(BlindP3Test* self, const std::string& sql) {
         try {
             (void)self->Parse(sql);
             FAIL() << "Expected SyntaxException for SQL: " << sql;
@@ -121,61 +113,50 @@ struct BlindP3Test : public ::testing::Test {
 // -----------------------------------------------------------------------------
 
 TEST_F(BlindP3Test, ParserAcceptsCanonicalSelectClauseOrder) {
-    ASSERT_NO_THROW(Parse(
-        "SELECT age, COUNT(*) "
-        "FROM users "
-        "WHERE age > 18 "
-        "GROUP BY age "
-        "HAVING COUNT(*) > 1 "
-        "ORDER BY age DESC "
-        "LIMIT 10 OFFSET 5;"
-    ));
+    ASSERT_NO_THROW(
+        Parse("SELECT age, COUNT(*) "
+              "FROM users "
+              "WHERE age > 18 "
+              "GROUP BY age "
+              "HAVING COUNT(*) > 1 "
+              "ORDER BY age DESC "
+              "LIMIT 10 OFFSET 5;"));
 }
 
 TEST_F(BlindP3Test, ParserRejectsHavingBeforeGroupBy) {
-    ExpectSyntaxErrorWithLocation(
-        this,
-        "SELECT age FROM users "
-        "HAVING age > 10 "
-        "GROUP BY age;"
-    );
+    ExpectSyntaxErrorWithLocation(this,
+                                  "SELECT age FROM users "
+                                  "HAVING age > 10 "
+                                  "GROUP BY age;");
 }
 
 TEST_F(BlindP3Test, ParserRejectsOrderByBeforeHaving) {
-    ExpectSyntaxErrorWithLocation(
-        this,
-        "SELECT age FROM users "
-        "GROUP BY age "
-        "ORDER BY age "
-        "HAVING age > 10;"
-    );
+    ExpectSyntaxErrorWithLocation(this,
+                                  "SELECT age FROM users "
+                                  "GROUP BY age "
+                                  "ORDER BY age "
+                                  "HAVING age > 10;");
 }
 
 TEST_F(BlindP3Test, ParserRejectsWhereAfterOrderBy) {
-    ExpectSyntaxErrorWithLocation(
-        this,
-        "SELECT age FROM users "
-        "ORDER BY age "
-        "WHERE age > 10;"
-    );
+    ExpectSyntaxErrorWithLocation(this,
+                                  "SELECT age FROM users "
+                                  "ORDER BY age "
+                                  "WHERE age > 10;");
 }
 
 TEST_F(BlindP3Test, ParserRejectsLimitBeforeOrderBy) {
-    ExpectSyntaxErrorWithLocation(
-        this,
-        "SELECT age FROM users "
-        "LIMIT 10 "
-        "ORDER BY age;"
-    );
+    ExpectSyntaxErrorWithLocation(this,
+                                  "SELECT age FROM users "
+                                  "LIMIT 10 "
+                                  "ORDER BY age;");
 }
 
 TEST_F(BlindP3Test, ParserRejectsOffsetBeforeLimit) {
-    ExpectSyntaxErrorWithLocation(
-        this,
-        "SELECT age FROM users "
-        "OFFSET 5 "
-        "LIMIT 10;"
-    );
+    ExpectSyntaxErrorWithLocation(this,
+                                  "SELECT age FROM users "
+                                  "OFFSET 5 "
+                                  "LIMIT 10;");
 }
 
 TEST_F(BlindP3Test, SyntaxErrorReportsNonZeroLineAndColumn) {
@@ -183,8 +164,7 @@ TEST_F(BlindP3Test, SyntaxErrorReportsNonZeroLineAndColumn) {
         (void)Parse(
             "SELECT *\n"
             "FROM users\n"
-            "WHERE ;"
-        );
+            "WHERE ;");
         FAIL() << "Expected SyntaxException";
     } catch (const utils::SyntaxException& e) {
         EXPECT_GT(e.GetLine(), 0);
@@ -205,43 +185,37 @@ TEST_F(BlindP3Test, ParserAcceptsSelectAll) {
 }
 
 TEST_F(BlindP3Test, PrattParserAcceptsOrAndPrecedenceForm) {
-    ASSERT_NO_THROW(Bind(
-        "SELECT id FROM users "
-        "WHERE id = 1 OR age = 20 AND score > 10;"
-    ));
+    ASSERT_NO_THROW(
+        Bind("SELECT id FROM users "
+             "WHERE id = 1 OR age = 20 AND score > 10;"));
 }
 
 TEST_F(BlindP3Test, PrattParserRespectsNotVsComparisonThroughSemanticBinding) {
-    ASSERT_NO_THROW(Bind(
-        "SELECT id FROM users "
-        "WHERE NOT age = 20 AND id = 1;"
-    ));
+    ASSERT_NO_THROW(
+        Bind("SELECT id FROM users "
+             "WHERE NOT age = 20 AND id = 1;"));
 }
 
 TEST_F(BlindP3Test, PrattParserRespectsComparisonVsArithmeticPrecedence) {
-    ASSERT_NO_THROW(Bind(
-        "SELECT id FROM users "
-        "WHERE score > 1 + 2 * 3;"
-    ));
+    ASSERT_NO_THROW(
+        Bind("SELECT id FROM users "
+             "WHERE score > 1 + 2 * 3;"));
 }
 
 TEST_F(BlindP3Test, PrattParserAcceptsLeftAssociativeSubtraction) {
-    ASSERT_NO_THROW(Bind(
-        "SELECT id FROM users "
-        "WHERE 10 - 5 - 2 = 3;"
-    ));
+    ASSERT_NO_THROW(
+        Bind("SELECT id FROM users "
+             "WHERE 10 - 5 - 2 = 3;"));
 }
 
 TEST_F(BlindP3Test, PrattParserAcceptsExplicitParentheses) {
-    ASSERT_NO_THROW(Bind(
-        "SELECT id FROM users "
-        "WHERE (10 - 5) - 2 = 3;"
-    ));
+    ASSERT_NO_THROW(
+        Bind("SELECT id FROM users "
+             "WHERE (10 - 5) - 2 = 3;"));
 
-    ASSERT_NO_THROW(Bind(
-        "SELECT id FROM users "
-        "WHERE 10 - (5 - 2) = 7;"
-    ));
+    ASSERT_NO_THROW(
+        Bind("SELECT id FROM users "
+             "WHERE 10 - (5 - 2) = 7;"));
 }
 
 // -----------------------------------------------------------------------------
@@ -249,56 +223,36 @@ TEST_F(BlindP3Test, PrattParserAcceptsExplicitParentheses) {
 // -----------------------------------------------------------------------------
 
 TEST_F(BlindP3Test, BinderRejectsUnknownTable) {
-    EXPECT_THROW(
-        Bind("SELECT * FROM nonexistent;"),
-        utils::SemanticException
-    );
+    EXPECT_THROW(Bind("SELECT * FROM nonexistent;"), utils::SemanticException);
 }
 
 TEST_F(BlindP3Test, BinderRejectsUnknownColumn) {
-    EXPECT_THROW(
-        Bind("SELECT nonexistent FROM users;"),
-        utils::SemanticException
-    );
+    EXPECT_THROW(Bind("SELECT nonexistent FROM users;"), utils::SemanticException);
 }
 
 TEST_F(BlindP3Test, BinderRejectsAmbiguousUnqualifiedColumn) {
-    EXPECT_THROW(
-        Bind(
-            "SELECT order_id "
-            "FROM orders "
-            "JOIN items ON orders.order_id = items.order_id;"
-        ),
-        utils::SemanticException
-    );
+    EXPECT_THROW(Bind("SELECT order_id "
+                      "FROM orders "
+                      "JOIN items ON orders.order_id = items.order_id;"),
+                 utils::SemanticException);
 }
 
 TEST_F(BlindP3Test, BinderAcceptsQualifiedColumnToResolveAmbiguity) {
     ASSERT_NO_THROW(
-        Bind(
-            "SELECT orders.order_id "
-            "FROM orders "
-            "JOIN items ON orders.order_id = items.order_id;"
-        )
-    );
+        Bind("SELECT orders.order_id "
+             "FROM orders "
+             "JOIN items ON orders.order_id = items.order_id;"));
 }
 
 TEST_F(BlindP3Test, BinderRejectsAggregateInWhereClause) {
-    EXPECT_THROW(
-        Bind("SELECT id FROM users WHERE COUNT(*) > 1;"),
-        utils::SemanticException
-    );
+    EXPECT_THROW(Bind("SELECT id FROM users WHERE COUNT(*) > 1;"), utils::SemanticException);
 }
 
 TEST_F(BlindP3Test, BinderRejectsUngroupedProjectionColumn) {
-    EXPECT_THROW(
-        Bind(
-            "SELECT id, name, COUNT(*) "
-            "FROM users "
-            "GROUP BY id;"
-        ),
-        utils::SemanticException
-    );
+    EXPECT_THROW(Bind("SELECT id, name, COUNT(*) "
+                      "FROM users "
+                      "GROUP BY id;"),
+                 utils::SemanticException);
 }
 
 TEST_F(BlindP3Test, BinderExpandsUnqualifiedWildcardInSchemaOrder) {
@@ -352,8 +306,7 @@ TEST_F(BlindP3Test, BinderAcceptsGroupedAggregateQuery) {
     auto bound = Bind(
         "SELECT age, COUNT(*) "
         "FROM users "
-        "GROUP BY age;"
-    );
+        "GROUP BY age;");
 
     ASSERT_NE(bound, nullptr);
 }
@@ -363,8 +316,7 @@ TEST_F(BlindP3Test, BinderAcceptHavingOnAggregateExpression) {
         "SELECT age, COUNT(*) "
         "FROM users "
         "GROUP BY age "
-        "HAVING COUNT(*) > 1;"
-    );
+        "HAVING COUNT(*) > 1;");
 
     ASSERT_NE(bound, nullptr);
 }
@@ -384,8 +336,7 @@ TEST_F(BlindP3Test, PlannerProducesProjectOverScanForSimpleSelect) {
     ASSERT_NE(project, nullptr);
     EXPECT_EQ(project->projections.size(), 2u);
 
-    auto* scan =
-        dynamic_cast<optimizer::LogicalScan*>(project->children[0].get());
+    auto* scan = dynamic_cast<optimizer::LogicalScan*>(project->children[0].get());
     ASSERT_NE(scan, nullptr);
     EXPECT_EQ(scan->Type(), optimizer::LogicalNodeType::Scan);
     EXPECT_EQ(scan->tableName, "users");
@@ -398,14 +349,12 @@ TEST_F(BlindP3Test, PlannerProducesProjectFilterScanForWhere) {
     EXPECT_EQ(plan->Type(), optimizer::LogicalNodeType::Project);
     ASSERT_EQ(plan->children.size(), 1u);
 
-    auto* filter =
-        dynamic_cast<optimizer::LogicalFilter*>(plan->children[0].get());
+    auto* filter = dynamic_cast<optimizer::LogicalFilter*>(plan->children[0].get());
     ASSERT_NE(filter, nullptr);
     ASSERT_NE(filter->predicate, nullptr);
     ASSERT_EQ(filter->children.size(), 1u);
 
-    auto* scan =
-        dynamic_cast<optimizer::LogicalScan*>(filter->children[0].get());
+    auto* scan = dynamic_cast<optimizer::LogicalScan*>(filter->children[0].get());
     ASSERT_NE(scan, nullptr);
     EXPECT_EQ(scan->tableName, "users");
 }
@@ -415,8 +364,7 @@ TEST_F(BlindP3Test, PlannerProducesLimitThenProjectFilterScan) {
         "SELECT id "
         "FROM users "
         "WHERE age > 18 "
-        "LIMIT 10;"
-    );
+        "LIMIT 10;");
 
     ASSERT_NE(plan, nullptr);
     EXPECT_EQ(plan->Type(), optimizer::LogicalNodeType::Limit);
@@ -426,19 +374,16 @@ TEST_F(BlindP3Test, PlannerProducesLimitThenProjectFilterScan) {
     ASSERT_NE(limit->limit, nullptr);
     ASSERT_EQ(limit->children.size(), 1u);
 
-    auto* project =
-        dynamic_cast<optimizer::LogicalProject*>(limit->children[0].get());
+    auto* project = dynamic_cast<optimizer::LogicalProject*>(limit->children[0].get());
     ASSERT_NE(project, nullptr);
     ASSERT_EQ(project->children.size(), 1u);
 
-    auto* filter =
-        dynamic_cast<optimizer::LogicalFilter*>(project->children[0].get());
+    auto* filter = dynamic_cast<optimizer::LogicalFilter*>(project->children[0].get());
     ASSERT_NE(filter, nullptr);
     ASSERT_NE(filter->predicate, nullptr);
     ASSERT_EQ(filter->children.size(), 1u);
 
-    auto* scan =
-        dynamic_cast<optimizer::LogicalScan*>(filter->children[0].get());
+    auto* scan = dynamic_cast<optimizer::LogicalScan*>(filter->children[0].get());
     ASSERT_NE(scan, nullptr);
     EXPECT_EQ(scan->tableName, "users");
 }
@@ -448,8 +393,7 @@ TEST_F(BlindP3Test, PlannerProducesLimitThenSortThenProject) {
         "SELECT id, score "
         "FROM users "
         "ORDER BY score DESC "
-        "LIMIT 10;"
-    );
+        "LIMIT 10;");
 
     ASSERT_NE(plan, nullptr);
     EXPECT_EQ(plan->Type(), optimizer::LogicalNodeType::Limit);
@@ -459,20 +403,17 @@ TEST_F(BlindP3Test, PlannerProducesLimitThenSortThenProject) {
     ASSERT_NE(limit->limit, nullptr);
     ASSERT_EQ(limit->children.size(), 1u);
 
-    auto* sort =
-        dynamic_cast<optimizer::LogicalSort*>(limit->children[0].get());
+    auto* sort = dynamic_cast<optimizer::LogicalSort*>(limit->children[0].get());
     ASSERT_NE(sort, nullptr);
     EXPECT_FALSE(sort->keys.empty());
     ASSERT_EQ(sort->children.size(), 1u);
 
-    auto* project =
-        dynamic_cast<optimizer::LogicalProject*>(sort->children[0].get());
+    auto* project = dynamic_cast<optimizer::LogicalProject*>(sort->children[0].get());
     ASSERT_NE(project, nullptr);
     EXPECT_EQ(project->projections.size(), 2u);
 
     ASSERT_EQ(project->children.size(), 1u);
-    auto* scan =
-        dynamic_cast<optimizer::LogicalScan*>(project->children[0].get());
+    auto* scan = dynamic_cast<optimizer::LogicalScan*>(project->children[0].get());
     ASSERT_NE(scan, nullptr);
 }
 
@@ -480,8 +421,7 @@ TEST_F(BlindP3Test, PlannerSortKeyCarriesDescendingDirection) {
     auto plan = Plan(
         "SELECT id, score "
         "FROM users "
-        "ORDER BY score DESC;"
-    );
+        "ORDER BY score DESC;");
 
     ASSERT_NE(plan, nullptr);
     EXPECT_EQ(plan->Type(), optimizer::LogicalNodeType::Sort);
@@ -497,8 +437,7 @@ TEST_F(BlindP3Test, PlannerProducesAggregateForGroupBy) {
     auto plan = Plan(
         "SELECT age, COUNT(*) "
         "FROM users "
-        "GROUP BY age;"
-    );
+        "GROUP BY age;");
 
     ASSERT_NE(plan, nullptr);
     EXPECT_EQ(plan->Type(), optimizer::LogicalNodeType::Aggregate);
@@ -519,8 +458,7 @@ TEST_F(BlindP3Test, PlannerProducesAggregateForGroupBy) {
     EXPECT_TRUE(foundAggregateExpression);
     ASSERT_EQ(aggregate->children.size(), 1u);
 
-    auto* scan =
-        dynamic_cast<optimizer::LogicalScan*>(aggregate->children[0].get());
+    auto* scan = dynamic_cast<optimizer::LogicalScan*>(aggregate->children[0].get());
     ASSERT_NE(scan, nullptr);
     EXPECT_EQ(scan->tableName, "users");
 }
@@ -532,8 +470,7 @@ TEST_F(BlindP3Test, PlannerProducesLimitSortAggregateForGroupedOrderedQuery) {
         "GROUP BY age "
         "HAVING COUNT(*) > 1 "
         "ORDER BY age DESC "
-        "LIMIT 10;"
-    );
+        "LIMIT 10;");
 
     ASSERT_NE(plan, nullptr);
     EXPECT_EQ(plan->Type(), optimizer::LogicalNodeType::Limit);
@@ -543,22 +480,19 @@ TEST_F(BlindP3Test, PlannerProducesLimitSortAggregateForGroupedOrderedQuery) {
     ASSERT_NE(limit->limit, nullptr);
     ASSERT_EQ(limit->children.size(), 1u);
 
-    auto* sort =
-        dynamic_cast<optimizer::LogicalSort*>(limit->children[0].get());
+    auto* sort = dynamic_cast<optimizer::LogicalSort*>(limit->children[0].get());
     ASSERT_NE(sort, nullptr);
     ASSERT_FALSE(sort->keys.empty());
     ASSERT_EQ(sort->children.size(), 1u);
 
-    auto* aggregate =
-        dynamic_cast<optimizer::LogicalAggregate*>(sort->children[0].get());
+    auto* aggregate = dynamic_cast<optimizer::LogicalAggregate*>(sort->children[0].get());
     ASSERT_NE(aggregate, nullptr);
 
     EXPECT_EQ(aggregate->groupBy.size(), 1u);
     ASSERT_NE(aggregate->having, nullptr);
     ASSERT_EQ(aggregate->children.size(), 1u);
 
-    auto* scan =
-        dynamic_cast<optimizer::LogicalScan*>(aggregate->children[0].get());
+    auto* scan = dynamic_cast<optimizer::LogicalScan*>(aggregate->children[0].get());
     ASSERT_NE(scan, nullptr);
 }
 
@@ -566,24 +500,20 @@ TEST_F(BlindP3Test, PlannerBuildsNestedLoopJoinForTwoTables) {
     auto plan = Plan(
         "SELECT orders.order_id, items.price "
         "FROM orders "
-        "JOIN items ON orders.order_id = items.order_id;"
-    );
+        "JOIN items ON orders.order_id = items.order_id;");
 
     ASSERT_NE(plan, nullptr);
     EXPECT_EQ(plan->Type(), optimizer::LogicalNodeType::Project);
     ASSERT_EQ(plan->children.size(), 1u);
 
-    auto* join =
-        dynamic_cast<optimizer::LogicalNestedLoopJoin*>(plan->children[0].get());
+    auto* join = dynamic_cast<optimizer::LogicalNestedLoopJoin*>(plan->children[0].get());
     ASSERT_NE(join, nullptr);
     EXPECT_EQ(join->joinType, parser::ast::JoinType::INNER);
     ASSERT_NE(join->condition, nullptr);
     ASSERT_EQ(join->children.size(), 2u);
 
-    auto* left =
-        dynamic_cast<optimizer::LogicalScan*>(join->children[0].get());
-    auto* right =
-        dynamic_cast<optimizer::LogicalScan*>(join->children[1].get());
+    auto* left = dynamic_cast<optimizer::LogicalScan*>(join->children[0].get());
+    auto* right = dynamic_cast<optimizer::LogicalScan*>(join->children[1].get());
 
     ASSERT_NE(left, nullptr);
     ASSERT_NE(right, nullptr);
@@ -597,31 +527,25 @@ TEST_F(BlindP3Test, PlannerBuildsTwoNestedJoinsForThreeTables) {
         "SELECT users.id, orders.order_id, items.item_id "
         "FROM users "
         "JOIN orders ON users.id = orders.user_id "
-        "JOIN items ON orders.order_id = items.order_id;"
-    );
+        "JOIN items ON orders.order_id = items.order_id;");
 
     ASSERT_NE(plan, nullptr);
     EXPECT_EQ(plan->Type(), optimizer::LogicalNodeType::Project);
 
-    EXPECT_EQ(
-        CountNodesOfType(plan.get(), optimizer::LogicalNodeType::NestedLoopJoin),
-        2u
-    );
+    EXPECT_EQ(CountNodesOfType(plan.get(), optimizer::LogicalNodeType::NestedLoopJoin), 2u);
 }
 
 TEST_F(BlindP3Test, PlannerPreservesLeftJoinType) {
     auto plan = Plan(
         "SELECT users.id, orders.order_id "
         "FROM users "
-        "LEFT JOIN orders ON users.id = orders.user_id;"
-    );
+        "LEFT JOIN orders ON users.id = orders.user_id;");
 
     ASSERT_NE(plan, nullptr);
     EXPECT_EQ(plan->Type(), optimizer::LogicalNodeType::Project);
     ASSERT_EQ(plan->children.size(), 1u);
 
-    auto* join =
-        dynamic_cast<optimizer::LogicalNestedLoopJoin*>(plan->children[0].get());
+    auto* join = dynamic_cast<optimizer::LogicalNestedLoopJoin*>(plan->children[0].get());
     ASSERT_NE(join, nullptr);
 
     EXPECT_EQ(join->joinType, parser::ast::JoinType::LEFT);
@@ -636,8 +560,7 @@ TEST_F(BlindP3Test, PlannerUpdateWithWhereProducesUpdateFilterScan) {
     auto plan = Plan(
         "UPDATE users "
         "SET age = 42 "
-        "WHERE id = 1;"
-    );
+        "WHERE id = 1;");
 
     ASSERT_NE(plan, nullptr);
     EXPECT_EQ(plan->Type(), optimizer::LogicalNodeType::Update);
@@ -648,14 +571,12 @@ TEST_F(BlindP3Test, PlannerUpdateWithWhereProducesUpdateFilterScan) {
     ASSERT_FALSE(update->assignments.empty());
     ASSERT_EQ(update->children.size(), 1u);
 
-    auto* filter =
-        dynamic_cast<optimizer::LogicalFilter*>(update->children[0].get());
+    auto* filter = dynamic_cast<optimizer::LogicalFilter*>(update->children[0].get());
     ASSERT_NE(filter, nullptr);
     ASSERT_NE(filter->predicate, nullptr);
     ASSERT_EQ(filter->children.size(), 1u);
 
-    auto* scan =
-        dynamic_cast<optimizer::LogicalScan*>(filter->children[0].get());
+    auto* scan = dynamic_cast<optimizer::LogicalScan*>(filter->children[0].get());
     ASSERT_NE(scan, nullptr);
     EXPECT_EQ(scan->tableName, "users");
 }
@@ -663,8 +584,7 @@ TEST_F(BlindP3Test, PlannerUpdateWithWhereProducesUpdateFilterScan) {
 TEST_F(BlindP3Test, PlannerUpdateWithoutWhereProducesUpdateOverScan) {
     auto plan = Plan(
         "UPDATE users "
-        "SET age = 42;"
-    );
+        "SET age = 42;");
 
     ASSERT_NE(plan, nullptr);
     EXPECT_EQ(plan->Type(), optimizer::LogicalNodeType::Update);
@@ -675,8 +595,7 @@ TEST_F(BlindP3Test, PlannerUpdateWithoutWhereProducesUpdateOverScan) {
     ASSERT_FALSE(update->assignments.empty());
 
     ASSERT_EQ(update->children.size(), 1u);
-    auto* scan =
-        dynamic_cast<optimizer::LogicalScan*>(update->children[0].get());
+    auto* scan = dynamic_cast<optimizer::LogicalScan*>(update->children[0].get());
     ASSERT_NE(scan, nullptr);
     EXPECT_EQ(scan->tableName, "users");
 }
@@ -684,8 +603,7 @@ TEST_F(BlindP3Test, PlannerUpdateWithoutWhereProducesUpdateOverScan) {
 TEST_F(BlindP3Test, PlannerDeleteWithWhereProducesDeleteFilterScan) {
     auto plan = Plan(
         "DELETE FROM users "
-        "WHERE age < 18;"
-    );
+        "WHERE age < 18;");
 
     ASSERT_NE(plan, nullptr);
     EXPECT_EQ(plan->Type(), optimizer::LogicalNodeType::Delete);
@@ -695,14 +613,12 @@ TEST_F(BlindP3Test, PlannerDeleteWithWhereProducesDeleteFilterScan) {
     EXPECT_EQ(del->tableName, "users");
     ASSERT_EQ(del->children.size(), 1u);
 
-    auto* filter =
-        dynamic_cast<optimizer::LogicalFilter*>(del->children[0].get());
+    auto* filter = dynamic_cast<optimizer::LogicalFilter*>(del->children[0].get());
     ASSERT_NE(filter, nullptr);
     ASSERT_NE(filter->predicate, nullptr);
     ASSERT_EQ(filter->children.size(), 1u);
 
-    auto* scan =
-        dynamic_cast<optimizer::LogicalScan*>(filter->children[0].get());
+    auto* scan = dynamic_cast<optimizer::LogicalScan*>(filter->children[0].get());
     ASSERT_NE(scan, nullptr);
     EXPECT_EQ(scan->tableName, "users");
 }
@@ -718,8 +634,7 @@ TEST_F(BlindP3Test, PlannerDeleteWithoutWhereProducesDeleteOverScan) {
     EXPECT_EQ(del->tableName, "users");
 
     ASSERT_EQ(del->children.size(), 1u);
-    auto* scan =
-        dynamic_cast<optimizer::LogicalScan*>(del->children[0].get());
+    auto* scan = dynamic_cast<optimizer::LogicalScan*>(del->children[0].get());
     ASSERT_NE(scan, nullptr);
     EXPECT_EQ(scan->tableName, "users");
 }
@@ -727,8 +642,7 @@ TEST_F(BlindP3Test, PlannerDeleteWithoutWhereProducesDeleteOverScan) {
 TEST_F(BlindP3Test, PlannerInsertBuildsInsertNodeWithTwoRows) {
     auto plan = Plan(
         "INSERT INTO users (id, name, age) "
-        "VALUES (1, 'alice', 25), (2, 'bob', 30);"
-    );
+        "VALUES (1, 'alice', 25), (2, 'bob', 30);");
 
     ASSERT_NE(plan, nullptr);
     EXPECT_EQ(plan->Type(), optimizer::LogicalNodeType::Insert);
@@ -746,8 +660,7 @@ TEST_F(BlindP3Test, PlannerLimitOffsetSetsBothExpressions) {
     auto plan = Plan(
         "SELECT id "
         "FROM users "
-        "LIMIT 10 OFFSET 5;"
-    );
+        "LIMIT 10 OFFSET 5;");
 
     ASSERT_NE(plan, nullptr);
     EXPECT_EQ(plan->Type(), optimizer::LogicalNodeType::Limit);
@@ -759,10 +672,7 @@ TEST_F(BlindP3Test, PlannerLimitOffsetSetsBothExpressions) {
     ASSERT_NE(limit->offset, nullptr);
 
     ASSERT_EQ(limit->children.size(), 1u);
-    EXPECT_EQ(
-        limit->children[0]->Type(),
-        optimizer::LogicalNodeType::Project
-    );
+    EXPECT_EQ(limit->children[0]->Type(), optimizer::LogicalNodeType::Project);
 }
 
 TEST_F(BlindP3Test, PlannerCanonicalPipelineIncludesJoinBeforeFilterAndProject) {
@@ -770,21 +680,18 @@ TEST_F(BlindP3Test, PlannerCanonicalPipelineIncludesJoinBeforeFilterAndProject) 
         "SELECT users.id "
         "FROM users "
         "JOIN orders ON users.id = orders.user_id "
-        "WHERE orders.amount > 100;"
-    );
+        "WHERE orders.amount > 100;");
 
     ASSERT_NE(plan, nullptr);
     EXPECT_EQ(plan->Type(), optimizer::LogicalNodeType::Project);
     ASSERT_EQ(plan->children.size(), 1u);
 
-    auto* filter =
-        dynamic_cast<optimizer::LogicalFilter*>(plan->children[0].get());
+    auto* filter = dynamic_cast<optimizer::LogicalFilter*>(plan->children[0].get());
     ASSERT_NE(filter, nullptr);
     ASSERT_NE(filter->predicate, nullptr);
     ASSERT_EQ(filter->children.size(), 1u);
 
-    auto* join =
-        dynamic_cast<optimizer::LogicalNestedLoopJoin*>(filter->children[0].get());
+    auto* join = dynamic_cast<optimizer::LogicalNestedLoopJoin*>(filter->children[0].get());
     ASSERT_NE(join, nullptr);
     ASSERT_NE(join->condition, nullptr);
     ASSERT_EQ(join->children.size(), 2u);
@@ -796,8 +703,7 @@ TEST_F(BlindP3Test, PlannerPreservesScanMetadata) {
     ASSERT_NE(plan, nullptr);
     ASSERT_EQ(plan->children.size(), 1u);
 
-    auto* scan =
-        dynamic_cast<optimizer::LogicalScan*>(plan->children[0].get());
+    auto* scan = dynamic_cast<optimizer::LogicalScan*>(plan->children[0].get());
     ASSERT_NE(scan, nullptr);
 
     EXPECT_EQ(scan->tableName, "users");

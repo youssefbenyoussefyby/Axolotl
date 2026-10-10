@@ -1,71 +1,69 @@
 ﻿#pragma once
 
-#include <parser/ast/expr.h>
-#include <parser/ast/stmt.h>
-#include <parser/ast/printer.h>
-
 #include <parser/ast/boundstmt.h>
+#include <parser/ast/expr.h>
+#include <parser/ast/printer.h>
+#include <parser/ast/stmt.h>
 
-namespace AxolotlDB::parser
-{
-    using ast::Expr;
-    using ast::ExprPtr;
-    using ast::Literal;
-    using ast::ColumnRef;
-    using ast::Identifier;
-    using ast::BinaryOp;
-    using ast::BinaryOperator;
-    using ast::UnaryOp;
-    using ast::UnaryOperator;
-    using ast::FunctionCall;
-    using ast::Star;
-    using ast::Stmt;
-    using ast::Statement;
-    using ast::StatementPtr;
-    using ast::SelectStmt;
-    using ast::SelectStatement;
-    using ast::SelectItem;
-    using ast::TableName;
-    using ast::TableRef;
-    using ast::JoinClause;
-    using ast::JoinType;
-    using ast::OrderByItem;
-    using ast::InsertStmt;
-    using ast::InsertStatement;
-    using ast::UpdateStmt;
-    using ast::UpdateStatement;
-    using ast::DeleteStmt;
-    using ast::DeleteStatement;
-    using ast::ColumnDef;
-    using ast::CreateTableStmt;
-    using ast::CreateTableStatement;
-    using ast::DropTableStmt;
-    using ast::DropTableStatement;
-    using ast::ToString;
-    using ast::BoundExpr;
-    using ast::BoundExprPtr;
-    using ast::BoundLiteral;
-    using ast::BoundColumnRef;
-    using ast::BoundBinaryOp;
-    using ast::BoundUnaryOp;
-    using ast::BoundFunctionCall;
-    using ast::BoundTableRef;
-    using ast::BoundJoinClause;
-    using ast::BoundSelectItem;
-    using ast::BoundOrderByItem;
-    using ast::BoundStmt;
-    using ast::BoundStatement;
-    using ast::BoundStatementPtr;
-    using ast::BoundSelectStmt;
-    using ast::BoundSelectStatement;
-    using ast::BoundInsertStmt;
-    using ast::BoundInsertStatement;
-    using ast::BoundUpdateStmt;
-    using ast::BoundUpdateStatement;
-    using ast::BoundDeleteStmt;
-    using ast::BoundDeleteStatement;
-    using ast::BoundCreateTableStmt;
-    using ast::BoundCreateTableStatement;
-    using ast::BoundDropTableStmt;
-    using ast::BoundDropTableStatement;
-}
+namespace AxolotlDB::parser {
+using ast::BinaryOp;
+using ast::BinaryOperator;
+using ast::BoundBinaryOp;
+using ast::BoundColumnRef;
+using ast::BoundCreateTableStatement;
+using ast::BoundCreateTableStmt;
+using ast::BoundDeleteStatement;
+using ast::BoundDeleteStmt;
+using ast::BoundDropTableStatement;
+using ast::BoundDropTableStmt;
+using ast::BoundExpr;
+using ast::BoundExprPtr;
+using ast::BoundFunctionCall;
+using ast::BoundInsertStatement;
+using ast::BoundInsertStmt;
+using ast::BoundJoinClause;
+using ast::BoundLiteral;
+using ast::BoundOrderByItem;
+using ast::BoundSelectItem;
+using ast::BoundSelectStatement;
+using ast::BoundSelectStmt;
+using ast::BoundStatement;
+using ast::BoundStatementPtr;
+using ast::BoundStmt;
+using ast::BoundTableRef;
+using ast::BoundUnaryOp;
+using ast::BoundUpdateStatement;
+using ast::BoundUpdateStmt;
+using ast::ColumnDef;
+using ast::ColumnRef;
+using ast::CreateTableStatement;
+using ast::CreateTableStmt;
+using ast::DeleteStatement;
+using ast::DeleteStmt;
+using ast::DropTableStatement;
+using ast::DropTableStmt;
+using ast::Expr;
+using ast::ExprPtr;
+using ast::FunctionCall;
+using ast::Identifier;
+using ast::InsertStatement;
+using ast::InsertStmt;
+using ast::JoinClause;
+using ast::JoinType;
+using ast::Literal;
+using ast::OrderByItem;
+using ast::SelectItem;
+using ast::SelectStatement;
+using ast::SelectStmt;
+using ast::Star;
+using ast::Statement;
+using ast::StatementPtr;
+using ast::Stmt;
+using ast::TableName;
+using ast::TableRef;
+using ast::ToString;
+using ast::UnaryOp;
+using ast::UnaryOperator;
+using ast::UpdateStatement;
+using ast::UpdateStmt;
+}  // namespace AxolotlDB::parser

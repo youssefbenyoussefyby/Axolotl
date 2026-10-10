@@ -152,8 +152,8 @@ Page* VectorHeap::AcquirePage(PageId page_id) const {
     if (allocated != page_id) {
         UnpinPage(allocated, false);
         throw AxolotlDB::utils::IOException("VectorHeap: expected to allocate page " +
-                                           std::to_string(page_id) + " but FileManager returned " +
-                                           std::to_string(allocated));
+                                            std::to_string(page_id) + " but FileManager returned " +
+                                            std::to_string(allocated));
     }
     return page;
 }
@@ -161,7 +161,7 @@ Page* VectorHeap::AcquirePage(PageId page_id) const {
 VectorId VectorHeap::Put(std::span<const float> vector) {
     if (vector.size() != dimension_) {
         throw AxolotlDB::utils::VectorDimensionMismatchException("VectorHeap::Put", dimension_,
-                                                                vector.size());
+                                                                 vector.size());
     }
 
     const VectorId vector_id = vector_count_;
@@ -224,7 +224,7 @@ VectorRef VectorHeap::Ref(VectorId id) const {
     }
     if (id > UINT32_MAX) {
         throw AxolotlDB::utils::StorageException("VectorHeap::Ref: id " + std::to_string(id) +
-                                                " exceeds the 32-bit index a VectorRef can hold");
+                                                 " exceeds the 32-bit index a VectorRef can hold");
     }
     return VectorRef{heap_id_, static_cast<uint32_t>(id)};
 }

@@ -244,7 +244,6 @@ TEST_F(StorageServicesGate, DroppedThenRecreatedVectorColumnGetsDifferentHeapId)
 
         EXPECT_NE(first, second)
             << "a dropped-then-recreated vector column must get a fresh HeapId (B5)";
-        EXPECT_GT(second, first)
-            << "HeapId counter must be strictly monotonic across reopen";
+        EXPECT_GT(second, first) << "HeapId counter must be strictly monotonic across reopen";
     }
 }

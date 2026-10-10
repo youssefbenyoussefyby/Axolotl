@@ -22,17 +22,14 @@ using storage::Tuple;
 using storage::Value;
 
 class SeqScanTest : public ::testing::Test {
-protected:
+   protected:
     std::filesystem::path dir_;
     std::filesystem::path orig_dir_;
     std::unique_ptr<storage::StorageManager> sm_;
     std::unique_ptr<catalog::Catalog> cat_;
     std::unique_ptr<ExecutorContext> ctx_;
-    Schema schema_{{
-        ColumnDef{"id", ColumnType::INT32},
-        ColumnDef{"name", ColumnType::VARCHAR},
-        ColumnDef{"val", ColumnType::INT64}
-    }};
+    Schema schema_{{ColumnDef{"id", ColumnType::INT32}, ColumnDef{"name", ColumnType::VARCHAR},
+                    ColumnDef{"val", ColumnType::INT64}}};
 
     void SetUp() override {
         orig_dir_ = std::filesystem::current_path();
@@ -62,7 +59,9 @@ TEST_F(SeqScanTest, ReturnsEveryLiveRow) {
     auto& heap = cat_->GetTableHeap("users");
 
     for (int i = 0; i < 5; ++i) {
-        auto b = Tuple::Serialize(schema_, {Value::Int32(i), Value::Varchar("user_" + std::to_string(i)), Value::Int64(i * 10)});
+        auto b = Tuple::Serialize(
+            schema_,
+            {Value::Int32(i), Value::Varchar("user_" + std::to_string(i)), Value::Int64(i * 10)});
         (void)heap.Insert(b);
     }
 
@@ -96,7 +95,9 @@ TEST_F(SeqScanTest, SkipsTombstones) {
 
     std::vector<RID> insertedRids;
     for (int i = 0; i < 6; ++i) {
-        auto b = Tuple::Serialize(schema_, {Value::Int32(i), Value::Varchar("user_" + std::to_string(i)), Value::Int64(i * 10)});
+        auto b = Tuple::Serialize(
+            schema_,
+            {Value::Int32(i), Value::Varchar("user_" + std::to_string(i)), Value::Int64(i * 10)});
         insertedRids.push_back(heap.Insert(b));
     }
 

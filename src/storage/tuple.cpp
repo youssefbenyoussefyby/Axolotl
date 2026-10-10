@@ -33,8 +33,8 @@ static bool IsVariable(ColumnType t) noexcept {
 static void RequireColumnType(const ColumnDef& column, const Value& value) {
     if (value.Type() != column.type) {
         throw AxolotlDB::utils::TypeMismatchException("column '" + column.name + "'",
-                                                     ColumnTypeName(column.type),
-                                                     ColumnTypeName(value.Type()));
+                                                      ColumnTypeName(column.type),
+                                                      ColumnTypeName(value.Type()));
     }
 }
 
@@ -64,8 +64,8 @@ std::vector<std::byte> Tuple::Serialize(const Schema& schema, const std::vector<
             if (!values[i].IsNull()) {
                 const std::size_t col_bytes = values[i].AsVarchar().size();
                 if (col_bytes > MAX_VAR_COLUMN_BYTES) {
-                    throw AxolotlDB::utils::ValueTooLargeException(schema.columns[i].name, col_bytes,
-                                                                  MAX_VAR_COLUMN_BYTES);
+                    throw AxolotlDB::utils::ValueTooLargeException(schema.columns[i].name,
+                                                                   col_bytes, MAX_VAR_COLUMN_BYTES);
                 }
                 var_data_bytes += col_bytes;
             }
@@ -172,7 +172,7 @@ std::vector<Value> Tuple::Deserialize(const Schema& schema, std::span<const std:
     const auto version = static_cast<uint8_t>(raw[0]);
     if (version != TUPLE_FORMAT_VERSION) {
         throw AxolotlDB::utils::StorageException("Tuple::Deserialize: unsupported format version " +
-                                                std::to_string(version));
+                                                 std::to_string(version));
     }
 
     const std::byte* p = raw.data() + 1;

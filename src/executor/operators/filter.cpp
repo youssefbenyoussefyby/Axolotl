@@ -48,7 +48,7 @@ bool FilterExecutor::Next(std::vector<storage::Tuple>* tupleBatch,
             if (!child_->Next(&pending_tuples_, pending_rids_)) {
                 pending_tuples_.clear();
                 pending_rids_.reset();
-                break;  
+                break;
             }
             if (wantRids &&
                 (!pending_rids_.has_value() || pending_rids_->size() != pending_tuples_.size())) {
@@ -63,7 +63,7 @@ bool FilterExecutor::Next(std::vector<storage::Tuple>* tupleBatch,
             bool keep = true;
             if (plan_.predicate) {
                 storage::Value val = Evaluate(*plan_.predicate, pending_tuples_[i], childSchema);
-                keep = IsTrue(val);  
+                keep = IsTrue(val);
             }
             if (keep) {
                 tupleBatch->push_back(std::move(pending_tuples_[i]));

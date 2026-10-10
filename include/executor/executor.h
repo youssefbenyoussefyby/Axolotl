@@ -11,7 +11,7 @@
 namespace AxolotlDB::executor {
 
 class AbstractExecutor {
-public:
+   public:
     explicit AbstractExecutor(ExecutorContext* ctx) : context_(ctx) {}
     virtual ~AbstractExecutor() = default;
 
@@ -29,13 +29,18 @@ public:
                       std::optional<std::vector<storage::RID>>& ridBatch) = 0;
 
     virtual const storage::Schema& GetOutputSchema() const = 0;
-    [[nodiscard]] const storage::Schema& OutputSchema() const { return GetOutputSchema(); }
-    [[nodiscard]] const ExecutorContext* GetContext() const { return context_; }
+    [[nodiscard]] const storage::Schema& OutputSchema() const {
+        return GetOutputSchema();
+    }
+    [[nodiscard]] const ExecutorContext* GetContext() const {
+        return context_;
+    }
 
-protected:
+   protected:
     ExecutorContext* context_;
 };
 
-[[nodiscard]] std::unique_ptr<AbstractExecutor> CreateExecutor(const optimizer::PhysicalNode& plan, ExecutorContext* ctx);
+[[nodiscard]] std::unique_ptr<AbstractExecutor> CreateExecutor(const optimizer::PhysicalNode& plan,
+                                                               ExecutorContext* ctx);
 
-}
+}  // namespace AxolotlDB::executor

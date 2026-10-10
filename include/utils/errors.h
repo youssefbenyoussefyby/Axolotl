@@ -17,18 +17,31 @@ class SyntaxException : public AxolotException {
     uint16_t column;
     std::string token;
 
-    SyntaxException(const std::string& msg, uint16_t line, uint16_t column, const std::string& token = "") : AxolotException(msg), line(line), column(column), token(token) {}
+    SyntaxException(const std::string& msg, uint16_t line, uint16_t column,
+                    const std::string& token = "")
+        : AxolotException(msg), line(line), column(column), token(token) {}
 
-    uint16_t GetLine() const { return line; }
-    uint16_t GetColumn() const { return column; }
-    const std::string& GetToken() const { return token; }
-    const std::string& GetLexeme() const { return token; }
-    const std::string& GetLexem() const { return token; }
+    uint16_t GetLine() const {
+        return line;
+    }
+    uint16_t GetColumn() const {
+        return column;
+    }
+    const std::string& GetToken() const {
+        return token;
+    }
+    const std::string& GetLexeme() const {
+        return token;
+    }
+    const std::string& GetLexem() const {
+        return token;
+    }
 };
 
 class SemanticException : public SyntaxException {
    public:
-    explicit SemanticException(const std::string& msg, uint16_t line = 0, uint16_t column = 0, const std::string& token = "")
+    explicit SemanticException(const std::string& msg, uint16_t line = 0, uint16_t column = 0,
+                               const std::string& token = "")
         : SyntaxException(msg, line, column, token) {}
 };
 

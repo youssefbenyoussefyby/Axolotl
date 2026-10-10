@@ -95,8 +95,12 @@ int TerminalWidth() {
     return 80;
 }
 
-void HideCursor() { std::cout << "\033[?25l" << std::flush; }
-void ShowCursor() { std::cout << "\033[?25h" << std::flush; }
+void HideCursor() {
+    std::cout << "\033[?25l" << std::flush;
+}
+void ShowCursor() {
+    std::cout << "\033[?25h" << std::flush;
+}
 
 }  // namespace
 
@@ -144,7 +148,9 @@ struct Phase {
             sum += t.Fraction();
         return sum / static_cast<double>(tasks.size());
     }
-    int Percent() const { return static_cast<int>(Fraction() * 100.0 + 0.5); }
+    int Percent() const {
+        return static_cast<int>(Fraction() * 100.0 + 0.5);
+    }
 };
 
 struct Stage {
@@ -154,7 +160,9 @@ struct Stage {
 struct Feature {
     std::string id, title, status, phase, task, example, note;
     std::vector<std::vector<std::string>> patterns;  // token sequences, upper-case
-    bool Available() const { return status == "available"; }
+    bool Available() const {
+        return status == "available";
+    }
 };
 
 struct ProjectData {
@@ -694,8 +702,8 @@ void PrintDevWelcome(const ProjectData& d, const fs::path& data_dir, bool engine
     PanelLine() << "          " << color::GREEN << "✔ " << color::RESET
                 << "demo data, since INSERT is not an executor yet  " << color::CYAN
                 << "(:seed, :tables)" << color::RESET << '\n';
-    PanelLine() << "          " << color::GREEN << "✔ " << color::RESET
-                << "axolotl animations  " << color::CYAN << "(:swim)" << color::RESET << '\n';
+    PanelLine() << "          " << color::GREEN << "✔ " << color::RESET << "axolotl animations  "
+                << color::CYAN << "(:swim)" << color::RESET << '\n';
     PanelLine() << color::DIM << color::GRAY
                 << "          user and admin modes stay placeholders until their modules exist."
                 << color::RESET << '\n';
@@ -779,9 +787,8 @@ void PrintStatus(const ProjectData& d) {
         const int percent = p.Percent();
         const int filled = percent * kCells / 100;
 
-        PanelLine() << StateColor(p.state) << PhaseIcon(p.state) << color::BOLD
-                    << PadRight(p.id, 4) << color::RESET << color::GRAY << PadRight(p.name, 25)
-                    << color::RESET;
+        PanelLine() << StateColor(p.state) << PhaseIcon(p.state) << color::BOLD << PadRight(p.id, 4)
+                    << color::RESET << color::GRAY << PadRight(p.name, 25) << color::RESET;
 
         std::cout << BarColor(percent);
         for (int i = 0; i < kCells; ++i) {
@@ -799,11 +806,11 @@ void PrintStatus(const ProjectData& d) {
         std::cout << '\n';
     }
 
-    const int overall = static_cast<int>(total / static_cast<double>(d.phases.size()) * 100.0 + 0.5);
+    const int overall =
+        static_cast<int>(total / static_cast<double>(d.phases.size()) * 100.0 + 0.5);
     PanelLine() << '\n';
-    PanelLine() << color::PINK_BRIGHT << color::BOLD << "overall " << overall << "%"
-                << color::RESET << color::GRAY << "   (:tasks <phase> for the checklist)"
-                << color::RESET << '\n';
+    PanelLine() << color::PINK_BRIGHT << color::BOLD << "overall " << overall << "%" << color::RESET
+                << color::GRAY << "   (:tasks <phase> for the checklist)" << color::RESET << '\n';
     PanelBottom();
     std::cout << '\n';
 }
@@ -835,9 +842,8 @@ void PrintTasks(const ProjectData& d, std::string wanted) {
     PanelTop(phase->id + " · " + phase->name);
     for (const auto& t : phase->tasks) {
         const char* c = StateColor(t.status);
-        PanelLine() << c << PhaseIcon(t.status) << color::BOLD << PadRight(t.id, 5)
-                    << color::RESET << (t.status == "done" ? color::GRAY : color::RESET)
-                    << t.title << color::RESET;
+        PanelLine() << c << PhaseIcon(t.status) << color::BOLD << PadRight(t.id, 5) << color::RESET
+                    << (t.status == "done" ? color::GRAY : color::RESET) << t.title << color::RESET;
         if (t.status == "in_progress" && t.progress >= 0) {
             std::cout << color::YELLOW << "  " << t.progress << "%" << color::RESET;
         }
@@ -853,8 +859,8 @@ void PrintTasks(const ProjectData& d, std::string wanted) {
 
 void PrintQueries(const ProjectData& d) {
     if (!d.queries_loaded) {
-        std::cout << color::RED << "  queries.json is not loaded, so SQL is disabled. "
-                  << d.problem << color::RESET << '\n';
+        std::cout << color::RED << "  queries.json is not loaded, so SQL is disabled. " << d.problem
+                  << color::RESET << '\n';
         return;
     }
     std::cout << '\n';
@@ -872,8 +878,8 @@ void PrintQueries(const ProjectData& d) {
     for (const auto& f : d.features) {
         if (f.Available())
             continue;
-        PanelLine() << color::YELLOW << "· " << color::RESET << PadRight(f.title, 34)
-                    << color::GRAY << f.phase << " " << f.task << color::RESET;
+        PanelLine() << color::YELLOW << "· " << color::RESET << PadRight(f.title, 34) << color::GRAY
+                    << f.phase << " " << f.task << color::RESET;
         if (!f.note.empty()) {
             std::cout << color::DIM << "  " << Truncate(f.note, 40) << color::RESET;
         }
@@ -934,8 +940,9 @@ void PrintResult(const QueryResult& r) {
 
     std::cout << '\n' << "  ";
     for (size_t c = 0; c < r.columns.size(); ++c) {
-        std::cout << color::PINK_BRIGHT << color::BOLD << PadRight(Truncate(r.columns[c], kMaxCell), width[c])
-                  << color::RESET << (c + 1 < r.columns.size() ? "  " : "");
+        std::cout << color::PINK_BRIGHT << color::BOLD
+                  << PadRight(Truncate(r.columns[c], kMaxCell), width[c]) << color::RESET
+                  << (c + 1 < r.columns.size() ? "  " : "");
     }
     std::cout << '\n' << "  " << color::DIM;
     for (size_t c = 0; c < r.columns.size(); ++c) {
@@ -1225,11 +1232,11 @@ int main(int argc, char** argv) {
                         std::cout << color::GREEN << "  ✔ " << runner->SeedDemo() << color::RESET
                                   << '\n';
                         std::cout << color::GRAY << "    try: " << color::CYAN
-                                  << "SELECT name, score FROM users WHERE age > 30;"
-                                  << color::RESET << '\n';
+                                  << "SELECT name, score FROM users WHERE age > 30;" << color::RESET
+                                  << '\n';
                     } catch (const std::exception& ex) {
-                        std::cout << color::RED << "  ✖ seed failed: " << ex.what()
-                                  << color::RESET << '\n';
+                        std::cout << color::RED << "  ✖ seed failed: " << ex.what() << color::RESET
+                                  << '\n';
                     }
                 }
             } else if (cmd == ":tables") {
@@ -1251,8 +1258,7 @@ int main(int argc, char** argv) {
                 }
             } else {
                 std::cout << color::RED << "  unknown command " << color::BOLD << cmd
-                          << color::RESET << color::GRAY << "  (try :help)" << color::RESET
-                          << '\n';
+                          << color::RESET << color::GRAY << "  (try :help)" << color::RESET << '\n';
             }
         };
 
@@ -1274,7 +1280,8 @@ int main(int argc, char** argv) {
                 }
                 std::cout << ModeColor(mode) << "  → " << color::RESET << input << '\n';
                 if (!echo_hint_shown) {
-                    std::cout << color::DIM << color::GRAY << "    echo only: the " << ModeName(mode)
+                    std::cout << color::DIM << color::GRAY << "    echo only: the "
+                              << ModeName(mode)
                               << " module is not built yet. SQL lives in dev mode (:dev)"
                               << color::RESET << '\n';
                     echo_hint_shown = true;

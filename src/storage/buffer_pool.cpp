@@ -67,7 +67,9 @@ void BufferPool::Unpin(PageRef ref, bool is_dirty) {
     }
 
     if (frame.pin_count <= 0) {
-        throw AxolotlDB::utils::InvalidPageException("Unpin: page (file=" + std::to_string(ref.file_id) + ", page=" + std::to_string(ref.page_no) + ") is not pinned");
+        throw AxolotlDB::utils::InvalidPageException(
+            "Unpin: page (file=" + std::to_string(ref.file_id) +
+            ", page=" + std::to_string(ref.page_no) + ") is not pinned");
     }
 
     frame.pin_count--;

@@ -224,8 +224,7 @@ TEST_F(CatalogTest, HeapIdIsNeverReusedAfterColumnDrop) {
 
         const auto t4 = cat.CreateTable("t4", VectorSchema());
         const HeapId fourth = cat.GetVectorHeap(t4, "emb").Id();
-        EXPECT_GT(fourth, third2)
-            << "heap id counter must survive drop + reopen monotonically";
+        EXPECT_GT(fourth, third2) << "heap id counter must survive drop + reopen monotonically";
     }
 }
 

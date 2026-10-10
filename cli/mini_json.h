@@ -42,7 +42,9 @@ struct Value {
         return (v != nullptr && v->type == Type::kNumber) ? v->number : fallback;
     }
 
-    bool Has(const std::string& key) const { return Find(key) != nullptr; }
+    bool Has(const std::string& key) const {
+        return Find(key) != nullptr;
+    }
 
     const std::vector<Value>& List(const std::string& key) const {
         static const std::vector<Value> kEmpty;
@@ -52,7 +54,7 @@ struct Value {
 };
 
 class Parser {
-public:
+   public:
     explicit Parser(const std::string& text) : s_(text) {}
 
     Value ParseDocument() {
@@ -64,7 +66,7 @@ public:
         return v;
     }
 
-private:
+   private:
     const std::string& s_;
     size_t i_ = 0;
 
@@ -170,14 +172,30 @@ private:
             }
             const char e = s_[i_++];
             switch (e) {
-                case '"': out += '"'; break;
-                case '\\': out += '\\'; break;
-                case '/': out += '/'; break;
-                case 'b': out += '\b'; break;
-                case 'f': out += '\f'; break;
-                case 'n': out += '\n'; break;
-                case 'r': out += '\r'; break;
-                case 't': out += '\t'; break;
+                case '"':
+                    out += '"';
+                    break;
+                case '\\':
+                    out += '\\';
+                    break;
+                case '/':
+                    out += '/';
+                    break;
+                case 'b':
+                    out += '\b';
+                    break;
+                case 'f':
+                    out += '\f';
+                    break;
+                case 'n':
+                    out += '\n';
+                    break;
+                case 'r':
+                    out += '\r';
+                    break;
+                case 't':
+                    out += '\t';
+                    break;
                 case 'u': {
                     uint32_t cp = ParseHex4();
                     if (cp >= 0xD800 && cp <= 0xDBFF && s_.compare(i_, 2, "\\u") == 0) {
