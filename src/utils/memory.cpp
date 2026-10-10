@@ -1,6 +1,7 @@
 ﻿#include <utils/memory.h>
 
 #include <cstdint>
+#include <cstring>
 #include <limits>
 #include <new>
 
@@ -15,9 +16,11 @@ struct alignas(std::max_align_t) AllocationHeader {
     std::uint64_t head_guard = kHeadGuard;
 };
 
-struct AllocationFooter {
-    std::uint64_t tail_guard = kTailGuard;
-};
+// The tail guard sits at user_ptr + bytes, flush against the user region so a
+// one-byte overrun hits it. That address has no alignment guarantee (bytes can
+// be anything), so it is only ever accessed through memcpy, never through a
+// uint64_t pointer -- a typed access there is UB and trips UBSan.
+constexpr std::size_t kFooterSize = sizeof(kTailGuard);
 
 static_assert((sizeof(AllocationHeader) % alignof(std::max_align_t)) == 0,
               "AllocationHeader must preserve max alignment.");
@@ -79,13 +82,13 @@ void* Allocator::AllocateBytes(std::size_t bytes, std::size_t alignment) {
 
     const std::size_t user_offset = UserOffset(alignment);
     if (WouldOverflow(user_offset, bytes) ||
-        (options_.enable_guards && WouldOverflow(user_offset + bytes, sizeof(AllocationFooter)))) {
+        (options_.enable_guards && WouldOverflow(user_offset + bytes, kFooterSize))) {
         throw std::bad_alloc();
     }
 
     std::size_t total_size = user_offset + bytes;
     if (options_.enable_guards) {
-        total_size += sizeof(AllocationFooter);
+        total_size += kFooterSize;
     }
 
     auto* base = static_cast<std::byte*>(::operator new(total_size, BaseAlignment(alignment)));
@@ -98,8 +101,7 @@ void* Allocator::AllocateBytes(std::size_t bytes, std::size_t alignment) {
     header->head_guard = kHeadGuard;
 
     if (options_.enable_guards) {
-        auto* footer = reinterpret_cast<AllocationFooter*>(user_ptr + bytes);
-        footer->tail_guard = kTailGuard;
+        std::memcpy(user_ptr + bytes, &kTailGuard, kFooterSize);
     }
 
     stats_.allocation_calls.fetch_add(1, std::memory_order_relaxed);
@@ -133,8 +135,9 @@ void Allocator::DeallocateBytes(void* ptr, std::size_t alignment) noexcept {
     bool guards_ok = true;
     if (options_.enable_guards) {
         guards_ok = guards_ok && (header->head_guard == kHeadGuard);
-        auto* footer = reinterpret_cast<AllocationFooter*>(user_ptr + bytes);
-        guards_ok = guards_ok && (footer->tail_guard == kTailGuard);
+        std::uint64_t tail_guard = 0;
+        std::memcpy(&tail_guard, user_ptr + bytes, kFooterSize);
+        guards_ok = guards_ok && (tail_guard == kTailGuard);
         if (!guards_ok) {
             stats_.guard_failures.fetch_add(1, std::memory_order_relaxed);
         }
