@@ -1,0 +1,26 @@
+cff-version: 1.2.0
+message: >-
+  If you use AxolotlDB in research, please cite it using the metadata below.
+title: "AxolotlDB: a from-scratch relational and vector database engine as a testbed for database research"
+type: software
+authors:
+  - given-names: Youssef
+    family-names: Ben Youssef
+repository-code: "https://github.com/youssefbenyoussefyby/Axolotl"
+version: 0.1.0
+license: GPL-3.0-only
+date-released: 2026-02-03
+keywords:
+  - database systems
+  - query processing
+  - query optimization
+  - vector search
+  - semantic operators
+  - large language models
+abstract: >-
+  AxolotlDB is a relational and vector database engine written from scratch in
+  C++20: paged storage, buffer pool, SQL front end, logical and physical
+  planning, and a Volcano-style executor. Every layer is owned and tested, so it
+  serves as a controlled testbed for language-model-aware database features:
+  semantic filters over text columns, model-assisted query optimization, and
+  memory-like storage with semantic compression.

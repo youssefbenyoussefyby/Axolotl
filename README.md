@@ -6,6 +6,7 @@
 [![CI](https://github.com/youssefbenyoussefyby/Axolotl/actions/workflows/main.yml/badge.svg?branch=Axolot)](https://github.com/youssefbenyoussefyby/Axolotl/actions/workflows/main.yml)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-blue.svg)](https://en.cppreference.com/w/cpp/20)
+[![Cite](https://img.shields.io/badge/cite-CITATION.cff-informational.svg)](CITATION.cff)
 
 ---
 
@@ -106,10 +107,10 @@ The CLI embeds the engine and runs the full pipeline:
 
 ```bash
 # Linux / macOS
-./build/axolotdb-cli --dev
+./build/AxolotlDB-cli --dev
 
 # Windows
-.\build\Release\axolotdb-cli.exe --dev
+.\build\Release\AxolotlDB-cli.exe --dev
 ```
 
 Run it from the repository root so it can find `cli/data/phases.json` and
@@ -143,7 +144,7 @@ will deliver it. This keeps the console honest while the engine grows.
 |---------|-------------|
 | `:dev` (`:debug`), `:user`, `:admin` | Switch mode |
 | `:queries` | SQL that works today, and what is planned and when |
-| `:status` (`:roadmap`) | Progress bar per phase, from `phases.json` |
+| `:status` (`:roadmap`) | Progress bar per phase, generated from the checklists in `docs/phases/` |
 | `:tasks [P4]` | Task checklist of a phase (default: the current stage) |
 | `:seed` | Create the demo table `king_ya_bay` (id, name, age, aura) with 6 rows, inserted through `TableHeap` directly because `INSERT` is not an executor yet |
 | `:tables` | List tables |
@@ -170,8 +171,11 @@ Data lives in the data directory and survives restarts.
 
 The engine is built so that research ideas can be implemented, instrumented and measured
 against a classical baseline in the same codebase. All three directions are **planned work**;
-no results are claimed yet. The draft research plan lives in
-[`docs/research/RESEARCH.md`](docs/research/RESEARCH.md).
+no results are claimed yet. The draft research plan, with a starting related-work list,
+lives in [`docs/research/RESEARCH.md`](docs/research/RESEARCH.md). Experiments are
+pre-registered and reproducible under [`experiments/`](experiments/README.md); the first,
+[E001](experiments/E001-semantic-filter-ordering/README.md) (ordering a semantic predicate
+among cheap ones), is defined and waiting on P4.3.
 
 | # | Direction | Core question | Baseline |
 |---|-----------|---------------|----------|
@@ -211,10 +215,12 @@ Future work: storing and querying **knowledge graphs** in the same engine.
 ├── include/            Public headers (storage/, catalog/, parser/, optimizer/, executor/, utils/)
 ├── src/                Implementation, mirroring include/
 ├── cli/                Interactive console (main.cpp, sql_runner, mini_json)
-│   └── data/           phases.json, queries.json: drive :status and the SQL gate
+│   └── data/           phases.json (generated from docs/phases/), queries.json (SQL gate)
 ├── server/             Server binary (stub)
 ├── tests/              GoogleTest suites (unit/, integration/)
 ├── benchmarks/         Micro-benchmarks
+├── experiments/        Pre-registered research experiments and committed results
+├── tools/              gen_phases.py: docs/phases/ checklists → cli/data/phases.json
 ├── docs/
 │   ├── ROADMAP.md      Architecture, on-disk formats, phase gates, amendment log
 │   ├── audit.md        Storage-layer audit findings
@@ -242,7 +248,10 @@ docker run --rm axolotldb:dev axolotldb-server   # server is currently a stub
 |----------|-------------|
 | [`docs/ROADMAP.md`](docs/ROADMAP.md) | Architecture, formats, phase specs and gates |
 | [`docs/phases/README.md`](docs/phases/README.md) | Phase guides: what to read and what to build, in order |
-| [`docs/research/RESEARCH.md`](docs/research/RESEARCH.md) | Research plan: hypotheses, baselines, evaluation |
+| [`docs/research/RESEARCH.md`](docs/research/RESEARCH.md) | Research plan: hypotheses, baselines, evaluation, related work |
+| [`experiments/README.md`](experiments/README.md) | Experiment protocol and status table |
+| [`CONTRIBUTING.md`](CONTRIBUTING.md) | Build, test, formatting and commit conventions |
+| [`SECURITY.md`](SECURITY.md) | How to report a vulnerability |
 | [`docs/audit.md`](docs/audit.md) | Audit findings and how each was resolved |
 | [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) | Third-party licences |
 
@@ -251,11 +260,30 @@ docker run --rm axolotldb:dev axolotldb-server   # server is currently a stub
 ## Contributing
 
 Personal research and learning project; issues and PRs are welcome, with no support
-commitment. Before opening a PR:
+commitment. See [`CONTRIBUTING.md`](CONTRIBUTING.md). In short:
 
-1. Run `clang-format` (config in [`.clang-format`](.clang-format))
+1. Format with clang-format **18.1.8** (config in [`.clang-format`](.clang-format))
 2. Make sure `ctest --test-dir build --output-on-failure` passes
 3. Keep commits focused and describe the *why*
+
+Participation follows the [Code of Conduct](CODE_OF_CONDUCT.md).
+
+---
+
+## Citing
+
+If AxolotlDB is useful in your research, please cite it. GitHub's **"Cite this
+repository"** button reads [`CITATION.cff`](CITATION.cff):
+
+```bibtex
+@software{benyoussef_axolotldb_2026,
+  author  = {Ben Youssef, Youssef},
+  title   = {{AxolotlDB}: a from-scratch relational and vector database engine as a testbed for database research},
+  year    = {2026},
+  version = {0.1.0},
+  url     = {https://github.com/youssefbenyoussefyby/Axolotl}
+}
+```
 
 ---
 

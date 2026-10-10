@@ -1,0 +1,6 @@
+# Mechanical commits that `git blame` should skip.
+# GitHub's blame view reads this file automatically; locally run:
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+#
+# style: apply clang-format 18.1.8 to the whole tree
+666fcf7f7d89bc41ee4f8fd90b497ac31e3dd62b
