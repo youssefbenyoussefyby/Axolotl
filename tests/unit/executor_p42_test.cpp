@@ -73,6 +73,7 @@
 #include <filesystem>
 #include <memory>
 #include <optional>
+#include <random>
 #include <set>
 #include <stdexcept>
 #include <string>
@@ -156,7 +157,13 @@ struct GlobalCtxState {
 
     GlobalCtxState() {
         const auto orig = std::filesystem::current_path();
-        dir = std::filesystem::temp_directory_path() / "axo_p42_scripted_ctx";
+        // Unique per process: ctest runs every TEST() as its own process, and with
+        // `ctest --parallel` a shared fixed name let one process remove_all() the
+        // catalog another was still using.
+        dir = std::filesystem::temp_directory_path() /
+              ("axo_p42_scripted_ctx_" + std::to_string(std::random_device{}()) + "_" +
+               std::to_string(static_cast<uint64_t>(
+                   std::chrono::steady_clock::now().time_since_epoch().count())));
         std::error_code ec;
         std::filesystem::remove_all(dir, ec);
         std::filesystem::create_directories(dir);

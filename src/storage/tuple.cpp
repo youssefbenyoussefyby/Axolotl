@@ -79,7 +79,7 @@ std::vector<std::byte> Tuple::Serialize(const Schema& schema, const std::vector<
     std::byte* p = buf.data() + 1;
     for (std::size_t i = 0; i < N; i++) {
         if (values[i].IsNull()) {
-            buf[1 + i / 8] |= std::byte{1u << (i % 8)};
+            buf[1 + i / 8] |= static_cast<std::byte>(1u << (i % 8));
         }
     }
     p += bitmap_bytes;

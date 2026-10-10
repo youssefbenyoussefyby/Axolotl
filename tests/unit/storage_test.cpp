@@ -16,8 +16,11 @@ using namespace AxolotlDB::storage;
 class StorageEngineTest : public ::testing::Test {
    protected:
     void SetUp() override {
-        // Ensure clean state
-        test_db_path = "test_axolot.db";
+        // Ensure clean state. One file per test: ctest runs each TEST_F as its own
+        // process in a shared working directory, so a fixed name collides under
+        // `ctest --parallel`.
+        test_db_path = std::string("test_axolot_") +
+                       ::testing::UnitTest::GetInstance()->current_test_info()->name() + ".db";
         if (std::filesystem::exists(test_db_path)) {
             std::filesystem::remove(test_db_path);
         }
