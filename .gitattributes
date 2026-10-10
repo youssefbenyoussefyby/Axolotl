@@ -1,4 +1,4 @@
-﻿# Normalize line endings: commit as LF, checkout per platform.
+# Normalize line endings: commit as LF, checkout per platform.
 * text=auto
 
 # Force LF for all source and config files.
