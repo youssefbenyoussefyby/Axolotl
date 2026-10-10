@@ -163,7 +163,9 @@ std::vector<Value> Tuple::Deserialize(const Schema& schema, std::span<const std:
     const std::size_t N = schema.ColumnCount();
     const std::size_t bitmap_bytes = (N + 7) / 8;
 
-    if (raw.size() < bitmap_bytes) {
+    // The version byte precedes the bitmap, so both must be present before
+    // raw[0] or the bitmap is read.
+    if (raw.size() < sizeof(uint8_t) + bitmap_bytes) {
         throw AxolotlDB::utils::StorageException(
             "Tuple::Deserialize: buffer too small for null bitmap");
     }
