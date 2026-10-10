@@ -1,0 +1,554 @@
+{
+  "project": "AxolotlDB",
+  "version": "0.1.0",
+  "generated_from": "docs/phases/P*.md by tools/gen_phases.py; do not edit by hand",
+  "stage": {
+    "phase": "P4",
+    "milestone": "4.3",
+    "label": "DML operators",
+    "state": "in_progress"
+  },
+  "phases": [
+    {
+      "id": "P0",
+      "name": "Hardening",
+      "state": "in_progress",
+      "note": "46/48 checklist items ticked",
+      "tasks": [
+        {
+          "id": "0.1",
+          "title": "Make the design record visible (N11)",
+          "status": "done"
+        },
+        {
+          "id": "0.2",
+          "title": "N2: drop std::format, get a green baseline",
+          "status": "in_progress",
+          "progress": 67
+        },
+        {
+          "id": "0.3",
+          "title": "N1: Page::ValidateOrThrow",
+          "status": "done"
+        },
+        {
+          "id": "0.4",
+          "title": "N3: UnpinPage ordering",
+          "status": "done"
+        },
+        {
+          "id": "0.5",
+          "title": "N4: close the two live pin leaks",
+          "status": "done"
+        },
+        {
+          "id": "0.6",
+          "title": "N10: AllocatePage",
+          "status": "done"
+        },
+        {
+          "id": "0.7",
+          "title": "N8: VectorHeap silent overflow",
+          "status": "done"
+        },
+        {
+          "id": "0.8",
+          "title": "N12–N14: hygiene",
+          "status": "done"
+        },
+        {
+          "id": "gate",
+          "title": "Gate",
+          "status": "in_progress",
+          "progress": 75
+        }
+      ]
+    },
+    {
+      "id": "P1",
+      "name": "Storage core",
+      "state": "in_progress",
+      "note": "2/4 checklist items ticked",
+      "tasks": [
+        {
+          "id": "statu",
+          "title": "Status",
+          "status": "in_progress",
+          "progress": 50
+        }
+      ]
+    },
+    {
+      "id": "P2",
+      "name": "Storage services",
+      "state": "done",
+      "note": "53/53 checklist items ticked",
+      "tasks": [
+        {
+          "id": "2.1",
+          "title": "StorageManager",
+          "status": "done"
+        },
+        {
+          "id": "2.2",
+          "title": "PageGuard",
+          "status": "done"
+        },
+        {
+          "id": "2.3",
+          "title": "Page header growth to 24 bytes",
+          "status": "done"
+        },
+        {
+          "id": "2.4",
+          "title": "VectorHeap adopts the standard header (N9 option A)",
+          "status": "done"
+        },
+        {
+          "id": "2.5",
+          "title": "TableHeap",
+          "status": "done"
+        },
+        {
+          "id": "2.6",
+          "title": "Catalog",
+          "status": "done"
+        },
+        {
+          "id": "2.7",
+          "title": "The WAL contract (not the implementation)",
+          "status": "done"
+        },
+        {
+          "id": "2.8",
+          "title": "Tuple format version byte",
+          "status": "done"
+        },
+        {
+          "id": "2.9",
+          "title": "CI: make code-quality blocking",
+          "status": "done"
+        },
+        {
+          "id": "gate",
+          "title": "Gate",
+          "status": "done"
+        }
+      ]
+    },
+    {
+      "id": "P3",
+      "name": "SQL front end",
+      "state": "in_progress",
+      "note": "31/44 checklist items ticked",
+      "tasks": [
+        {
+          "id": "3.1",
+          "title": "Lexer",
+          "status": "done"
+        },
+        {
+          "id": "3.2",
+          "title": "AST",
+          "status": "done"
+        },
+        {
+          "id": "3.3",
+          "title": "Recursive descent: statements",
+          "status": "done"
+        },
+        {
+          "id": "3.4",
+          "title": "Pratt expressions",
+          "status": "done"
+        },
+        {
+          "id": "3.5",
+          "title": "Error reporting",
+          "status": "done"
+        },
+        {
+          "id": "3.6",
+          "title": "Binder",
+          "status": "todo"
+        },
+        {
+          "id": "3.7",
+          "title": "Planner",
+          "status": "todo"
+        },
+        {
+          "id": "3.8",
+          "title": "Remove the generator toolchain",
+          "status": "done"
+        },
+        {
+          "id": "gate",
+          "title": "Gate",
+          "status": "todo"
+        }
+      ]
+    },
+    {
+      "id": "P4",
+      "name": "Execution engine",
+      "state": "in_progress",
+      "note": "10/29 checklist items ticked",
+      "tasks": [
+        {
+          "id": "4.1",
+          "title": "The executor framework",
+          "status": "done"
+        },
+        {
+          "id": "4.2",
+          "title": "The milestone: SeqScan + Filter + Projection",
+          "status": "done"
+        },
+        {
+          "id": "4.3",
+          "title": "DML operators",
+          "status": "todo"
+        },
+        {
+          "id": "4.4",
+          "title": "Joins, with the physical split intact",
+          "status": "todo"
+        },
+        {
+          "id": "4.5",
+          "title": "Aggregation, sort, limit",
+          "status": "todo"
+        },
+        {
+          "id": "4.6",
+          "title": "Rewrite rules",
+          "status": "todo"
+        },
+        {
+          "id": "gate",
+          "title": "Gate",
+          "status": "todo"
+        }
+      ]
+    },
+    {
+      "id": "P5",
+      "name": "WAL + recovery + latching",
+      "state": "next",
+      "note": "0/30 checklist items ticked",
+      "tasks": [
+        {
+          "id": "5.1",
+          "title": "Log record format and append",
+          "status": "todo"
+        },
+        {
+          "id": "5.2",
+          "title": "The WAL protocol inside the buffer pool",
+          "status": "todo"
+        },
+        {
+          "id": "5.3",
+          "title": "Stamping page_lsn",
+          "status": "todo"
+        },
+        {
+          "id": "5.4",
+          "title": "Analysis pass",
+          "status": "todo"
+        },
+        {
+          "id": "5.5",
+          "title": "Redo pass",
+          "status": "todo"
+        },
+        {
+          "id": "5.6",
+          "title": "Undo pass",
+          "status": "todo"
+        },
+        {
+          "id": "5.7",
+          "title": "Checkpoints",
+          "status": "todo"
+        },
+        {
+          "id": "5.8",
+          "title": "TransactionManager and 2PL",
+          "status": "todo"
+        },
+        {
+          "id": "5.9",
+          "title": "B8: the page latch",
+          "status": "todo"
+        },
+        {
+          "id": "gate",
+          "title": "Gate — a real crash test",
+          "status": "todo"
+        }
+      ]
+    },
+    {
+      "id": "P6",
+      "name": "Relational indexing",
+      "state": "todo",
+      "note": "0/38 checklist items ticked",
+      "tasks": [
+        {
+          "id": "6.1",
+          "title": "The Index interface",
+          "status": "todo"
+        },
+        {
+          "id": "6.2",
+          "title": "Node layout",
+          "status": "todo"
+        },
+        {
+          "id": "6.3",
+          "title": "Search and insert",
+          "status": "todo"
+        },
+        {
+          "id": "6.4",
+          "title": "Delete and merge",
+          "status": "todo"
+        },
+        {
+          "id": "6.5",
+          "title": "Range scan and iterator",
+          "status": "todo"
+        },
+        {
+          "id": "6.6",
+          "title": "WAL integration",
+          "status": "todo"
+        },
+        {
+          "id": "6.7",
+          "title": "Latching",
+          "status": "todo"
+        },
+        {
+          "id": "6.8",
+          "title": "Hash index",
+          "status": "todo"
+        },
+        {
+          "id": "6.9",
+          "title": "IndexScan operator",
+          "status": "todo"
+        },
+        {
+          "id": "6.10",
+          "title": "Index maintenance on every DML path",
+          "status": "todo"
+        },
+        {
+          "id": "6.11",
+          "title": "DDL",
+          "status": "todo"
+        },
+        {
+          "id": "gate",
+          "title": "Gate",
+          "status": "todo"
+        }
+      ]
+    },
+    {
+      "id": "P7",
+      "name": "Vector indexing / ANN",
+      "state": "todo",
+      "note": "0/33 checklist items ticked",
+      "tasks": [
+        {
+          "id": "7.1",
+          "title": "Distance kernels",
+          "status": "todo"
+        },
+        {
+          "id": "7.2",
+          "title": "The VectorIndex interface",
+          "status": "todo"
+        },
+        {
+          "id": "7.3",
+          "title": "BruteForceIndex, the oracle",
+          "status": "todo"
+        },
+        {
+          "id": "7.4",
+          "title": "Query path, on brute force alone",
+          "status": "todo"
+        },
+        {
+          "id": "7.5",
+          "title": "HNSW, in memory",
+          "status": "todo"
+        },
+        {
+          "id": "7.6",
+          "title": "Rebuild-on-load milestone",
+          "status": "todo"
+        },
+        {
+          "id": "7.7",
+          "title": "Persisted graph",
+          "status": "todo"
+        },
+        {
+          "id": "7.8",
+          "title": "Benchmarks",
+          "status": "todo"
+        },
+        {
+          "id": "7.9",
+          "title": "Optional: IVF",
+          "status": "todo"
+        },
+        {
+          "id": "gate",
+          "title": "Gate",
+          "status": "todo"
+        }
+      ]
+    },
+    {
+      "id": "P8",
+      "name": "Optimizer + statistics",
+      "state": "todo",
+      "note": "0/25 checklist items ticked",
+      "tasks": [
+        {
+          "id": "8.1",
+          "title": "Statistics types",
+          "status": "todo"
+        },
+        {
+          "id": "8.2",
+          "title": "Collection and persistence",
+          "status": "todo"
+        },
+        {
+          "id": "8.3",
+          "title": "Cardinality estimation",
+          "status": "todo"
+        },
+        {
+          "id": "8.4",
+          "title": "Cost model",
+          "status": "todo"
+        },
+        {
+          "id": "8.5",
+          "title": "Index selection",
+          "status": "todo"
+        },
+        {
+          "id": "8.6",
+          "title": "Join ordering",
+          "status": "todo"
+        },
+        {
+          "id": "gate",
+          "title": "Gate",
+          "status": "todo"
+        }
+      ]
+    },
+    {
+      "id": "P9",
+      "name": "Client / server / CLI",
+      "state": "todo",
+      "note": "0/27 checklist items ticked",
+      "tasks": [
+        {
+          "id": "9.1",
+          "title": "Wire protocol and framing",
+          "status": "todo"
+        },
+        {
+          "id": "9.2",
+          "title": "Server and sessions",
+          "status": "todo"
+        },
+        {
+          "id": "9.3",
+          "title": "Client library",
+          "status": "todo"
+        },
+        {
+          "id": "9.4",
+          "title": "CLI REPL",
+          "status": "todo"
+        },
+        {
+          "id": "9.5",
+          "title": "Output formats",
+          "status": "todo"
+        },
+        {
+          "id": "9.6",
+          "title": "Concurrency, end to end",
+          "status": "todo"
+        },
+        {
+          "id": "9.7",
+          "title": "Settle the name",
+          "status": "todo"
+        },
+        {
+          "id": "gate",
+          "title": "Gate",
+          "status": "todo"
+        }
+      ]
+    },
+    {
+      "id": "P10",
+      "name": "Embeddings",
+      "state": "optional",
+      "note": "0/24 checklist items ticked",
+      "tasks": [
+        {
+          "id": "10.1",
+          "title": "The interface (already declared in P7)",
+          "status": "todo"
+        },
+        {
+          "id": "10.2",
+          "title": "ExternalEmbeddingProvider",
+          "status": "todo"
+        },
+        {
+          "id": "10.3",
+          "title": "Auto-embed on INSERT",
+          "status": "todo"
+        },
+        {
+          "id": "10.4",
+          "title": "Batch embedding",
+          "status": "todo"
+        },
+        {
+          "id": "10.5",
+          "title": "OnnxEmbeddingProvider (behind ENABLE_ONNX=OFF)",
+          "status": "todo"
+        },
+        {
+          "id": "10.6",
+          "title": "Keep the build clonable",
+          "status": "todo"
+        },
+        {
+          "id": "gate",
+          "title": "Gate",
+          "status": "todo"
+        }
+      ]
+    }
+  ]
+}
