@@ -24,7 +24,7 @@ using storage::Tuple;
 using storage::Value;
 
 class ExecutorMilestone : public ::testing::Test {
-protected:
+   protected:
     std::filesystem::path dir_;
     std::filesystem::path orig_dir_;
 
@@ -45,11 +45,8 @@ protected:
 };
 
 TEST_F(ExecutorMilestone, SelectWithWhereReturnsCorrectRowsFromDisk) {
-    Schema userSchema{{
-        ColumnDef{"id", ColumnType::INT32},
-        ColumnDef{"name", ColumnType::VARCHAR},
-        ColumnDef{"age", ColumnType::INT32}
-    }};
+    Schema userSchema{{ColumnDef{"id", ColumnType::INT32}, ColumnDef{"name", ColumnType::VARCHAR},
+                       ColumnDef{"age", ColumnType::INT32}}};
 
     {
         storage::StorageManager sm(2);
@@ -61,7 +58,8 @@ TEST_F(ExecutorMilestone, SelectWithWhereReturnsCorrectRowsFromDisk) {
         for (int i = 1; i <= 60; ++i) {
             std::string namePadding(300, static_cast<char>('a' + (i % 26)));
             std::string name = "user_" + std::to_string(i) + "_" + namePadding;
-            auto bytes = Tuple::Serialize(userSchema, {Value::Int32(i), Value::Varchar(name), Value::Int32(i)});
+            auto bytes = Tuple::Serialize(userSchema,
+                                          {Value::Int32(i), Value::Varchar(name), Value::Int32(i)});
             (void)heap.Insert(bytes);
         }
         sm.FlushAll();

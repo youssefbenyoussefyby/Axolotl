@@ -37,23 +37,17 @@ struct PlannerTest : ::testing::Test {
         sm = std::make_unique<storage::StorageManager>(32);
         cat = std::make_unique<catalog::Catalog>(*sm);
 
-        cat->CreateTable("users", Schema{{
-            ColumnDef{"id", ColumnType::INT32},
-            ColumnDef{"name", ColumnType::VARCHAR},
-            ColumnDef{"age", ColumnType::INT32}
-        }});
+        cat->CreateTable("users", Schema{{ColumnDef{"id", ColumnType::INT32},
+                                          ColumnDef{"name", ColumnType::VARCHAR},
+                                          ColumnDef{"age", ColumnType::INT32}}});
 
-        cat->CreateTable("orders", Schema{{
-            ColumnDef{"order_id", ColumnType::INT32},
-            ColumnDef{"user_id", ColumnType::INT32},
-            ColumnDef{"amount", ColumnType::FLOAT64}
-        }});
+        cat->CreateTable("orders", Schema{{ColumnDef{"order_id", ColumnType::INT32},
+                                           ColumnDef{"user_id", ColumnType::INT32},
+                                           ColumnDef{"amount", ColumnType::FLOAT64}}});
 
-        cat->CreateTable("products", Schema{{
-            ColumnDef{"id", ColumnType::INT32},
-            ColumnDef{"name", ColumnType::VARCHAR},
-            ColumnDef{"price", ColumnType::FLOAT64}
-        }});
+        cat->CreateTable("products", Schema{{ColumnDef{"id", ColumnType::INT32},
+                                             ColumnDef{"name", ColumnType::VARCHAR},
+                                             ColumnDef{"price", ColumnType::FLOAT64}}});
     }
 
     void TearDown() override {
@@ -149,7 +143,9 @@ TEST_F(PlannerTest, JoinOnConditionIsSet) {
 }
 
 TEST_F(PlannerTest, JoinWithWhereClauseSetsFilter) {
-    auto plan = Plan("SELECT users.id FROM users JOIN orders ON users.id = orders.user_id WHERE orders.amount > 100;");
+    auto plan = Plan(
+        "SELECT users.id FROM users JOIN orders ON users.id = orders.user_id WHERE orders.amount > "
+        "100;");
     ASSERT_NE(plan, nullptr);
     EXPECT_EQ(plan->Type(), optimizer::LogicalNodeType::Project);
     EXPECT_EQ(plan->children[0]->Type(), optimizer::LogicalNodeType::Filter);
@@ -342,7 +338,9 @@ TEST_F(PlannerTest, ArithmeticExprInProjection) {
 }
 
 TEST_F(PlannerTest, ThreeTableJoinProducesNestedJoins) {
-    auto plan = Plan("SELECT users.id FROM users JOIN orders ON users.id = orders.user_id JOIN products ON orders.order_id = products.id;");
+    auto plan = Plan(
+        "SELECT users.id FROM users JOIN orders ON users.id = orders.user_id JOIN products ON "
+        "orders.order_id = products.id;");
     ASSERT_NE(plan, nullptr);
     EXPECT_EQ(plan->Type(), optimizer::LogicalNodeType::Project);
 

@@ -7,7 +7,7 @@
 namespace AxolotlDB::executor {
 
 class SeqScanExecutor : public AbstractExecutor {
-public:
+   public:
     SeqScanExecutor(ExecutorContext* ctx, const optimizer::PhysicalSeqScan& plan);
 
     void Init() override;
@@ -15,7 +15,7 @@ public:
               std::optional<std::vector<storage::RID>>& ridBatch) override;
     [[nodiscard]] const storage::Schema& GetOutputSchema() const override;
 
-private:
+   private:
     const optimizer::PhysicalSeqScan& plan_;
     storage::Schema output_schema_;
     storage::TableHeap* heap_ = nullptr;
@@ -23,4 +23,4 @@ private:
     storage::TableHeap::Iterator end_;
 };
 
-}
+}  // namespace AxolotlDB::executor

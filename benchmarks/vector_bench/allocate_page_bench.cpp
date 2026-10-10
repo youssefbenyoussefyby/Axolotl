@@ -115,8 +115,7 @@ static bool RunCorrectnessGate(int n_pages) {
     std::cout << "Allocating " << n_pages << " pages via StorageManager::NewPage...\n";
 
     IORegistry reg;
-    StorageManager sm(/*pool_size=*/static_cast<std::size_t>(n_pages) + 4,
-                      reg.factory());
+    StorageManager sm(/*pool_size=*/static_cast<std::size_t>(n_pages) + 4, reg.factory());
     const FileId fid = sm.OpenFile("mock://allocate_bench");
     CountingIO* io = reg.by_path.at("mock://allocate_bench");
 
@@ -129,21 +128,18 @@ static bool RunCorrectnessGate(int n_pages) {
 
     const int sync_during_loop = io->sync_calls.load();
     std::cout << "  allocate_calls = " << io->allocate_calls.load() << "\n";
-    std::cout << "  write_calls    = " << io->write_calls.load()    << "\n";
-    std::cout << "  sync_calls     = " << sync_during_loop
-              << "  (expected: 0)\n";
+    std::cout << "  write_calls    = " << io->write_calls.load() << "\n";
+    std::cout << "  sync_calls     = " << sync_during_loop << "  (expected: 0)\n";
 
-    bool ok = AssertSyncCount("sync_calls during " + std::to_string(n_pages) +
-                              " NewPage calls must be 0 (O(1))",
-                              sync_during_loop, 0);
+    bool ok = AssertSyncCount(
+        "sync_calls during " + std::to_string(n_pages) + " NewPage calls must be 0 (O(1))",
+        sync_during_loop, 0);
 
     // Now flush explicitly: exactly 1 Sync() must fire.
     sm.FlushAll();
     const int sync_after_flush = io->sync_calls.load();
-    std::cout << "  sync_calls after FlushAll() = " << sync_after_flush
-              << "  (expected: 1)\n";
-    ok &= AssertSyncCount("sync_calls after explicit FlushAll() must be 1",
-                          sync_after_flush, 1);
+    std::cout << "  sync_calls after FlushAll() = " << sync_after_flush << "  (expected: 1)\n";
+    ok &= AssertSyncCount("sync_calls after explicit FlushAll() must be 1", sync_after_flush, 1);
     return ok;
 }
 
@@ -152,8 +148,7 @@ static bool RunCorrectnessGate(int n_pages) {
 // ---------------------------------------------------------------------------
 static void RunThroughputBenchmark(int n_pages, const fs::path& tmp_dir) {
     std::cout << "\n=== THROUGHPUT BENCHMARK (real disk I/O) ===\n";
-    std::cout << "Allocating " << n_pages
-              << " pages via StorageManager::NewPage (real file)...\n";
+    std::cout << "Allocating " << n_pages << " pages via StorageManager::NewPage (real file)...\n";
 
     const fs::path db = tmp_dir / "alloc_bench_throughput.db";
     std::error_code ec;
@@ -175,23 +170,17 @@ static void RunThroughputBenchmark(int n_pages, const fs::path& tmp_dir) {
     const auto t_flush = Clock::now();
     sm.CloseFile(fid);
 
-    const double loop_ms =
-        std::chrono::duration<double, std::milli>(t_loop - t0).count();
-    const double flush_ms =
-        std::chrono::duration<double, std::milli>(t_flush - t_loop).count();
-    const double pages_per_sec =
-        (static_cast<double>(n_pages) / loop_ms) * 1000.0;
+    const double loop_ms = std::chrono::duration<double, std::milli>(t_loop - t0).count();
+    const double flush_ms = std::chrono::duration<double, std::milli>(t_flush - t_loop).count();
+    const double pages_per_sec = (static_cast<double>(n_pages) / loop_ms) * 1000.0;
 
-    std::cout << "  Loop (NewPage x" << n_pages << ")  : "
-              << loop_ms << " ms\n";
+    std::cout << "  Loop (NewPage x" << n_pages << ")  : " << loop_ms << " ms\n";
     std::cout << "  FlushAll (1 sync) : " << flush_ms << " ms\n";
     std::cout << "  Throughput        : " << static_cast<long long>(pages_per_sec)
               << " pages/sec\n";
-    std::cout << "  Per-page latency  : "
-              << (loop_ms * 1e6 / n_pages) << " ns\n";
+    std::cout << "  Per-page latency  : " << (loop_ms * 1e6 / n_pages) << " ns\n";
 
-    const double total_mb =
-        (static_cast<double>(n_pages) * PAGE_SIZE) / (1024.0 * 1024.0);
+    const double total_mb = (static_cast<double>(n_pages) * PAGE_SIZE) / (1024.0 * 1024.0);
     std::cout << "  Data written      : " << total_mb << " MiB\n";
 
     // Pre-fix baseline context (from audit.md N10): with per-call file_.flush()
@@ -200,8 +189,8 @@ static void RunThroughputBenchmark(int n_pages, const fs::path& tmp_dir) {
     // x 0.1ms = ~1000ms.  The current code should be << 100ms since OS buffers
     // absorb the writes and only one flush() fires at FlushAll().
     if (loop_ms > 500.0) {
-        std::cerr << "\n[PERF WARNING] Loop took " << loop_ms
-                  << " ms for " << n_pages << " pages.\n"
+        std::cerr << "\n[PERF WARNING] Loop took " << loop_ms << " ms for " << n_pages
+                  << " pages.\n"
                   << "  Pre-fix N10 code would take ~1000ms on NVMe due to\n"
                   << "  per-call file_.flush().  If you are seeing this on\n"
                   << "  fast hardware, suspect an O(n) flush regression.\n";
@@ -223,9 +212,8 @@ int main() {
     std::cout << "============================================\n";
     std::cout << "Claim (audit.md N10 + P0.md §0.6):\n";
     std::cout << "  AllocatePage must NOT call Sync/flush per invocation.\n";
-    std::cout << "  sync_calls during " << kPages
-              << " NewPage calls must be 0 (O(1)), not " << kPages
-              << " (O(n)).\n\n";
+    std::cout << "  sync_calls during " << kPages << " NewPage calls must be 0 (O(1)), not "
+              << kPages << " (O(n)).\n\n";
 
     const bool gate_passed = RunCorrectnessGate(kPages);
     RunThroughputBenchmark(kPages, tmp_dir);

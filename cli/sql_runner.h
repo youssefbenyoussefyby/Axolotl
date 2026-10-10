@@ -10,10 +10,10 @@
 #include <vector>
 
 struct SqlError {
-    std::string kind;     // "syntax error", "error", ...
+    std::string kind;  // "syntax error", "error", ...
     std::string message;
-    int line = 0;         // 1-based; 0 means "no position available"
-    int column = 0;       // 1-based
+    int line = 0;    // 1-based; 0 means "no position available"
+    int column = 0;  // 1-based
 };
 
 struct QueryResult {
@@ -24,7 +24,7 @@ struct QueryResult {
 };
 
 class SqlRunner {
-public:
+   public:
     /// Opens (or creates) the database files under `data_dir`.
     /// @throws std::exception if the storage layer cannot be opened.
     explicit SqlRunner(const std::filesystem::path& data_dir);
@@ -45,7 +45,7 @@ public:
     /// Lists user table names. Used by :tables.
     [[nodiscard]] std::vector<std::string> TableNames();
 
-private:
+   private:
     struct Impl;
     std::unique_ptr<Impl> impl_;
 };

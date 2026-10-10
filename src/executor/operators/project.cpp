@@ -58,4 +58,4 @@ const storage::Schema& ProjectionExecutor::GetOutputSchema() const {
     return output_schema_;
 }
 
-}
+}  // namespace AxolotlDB::executor

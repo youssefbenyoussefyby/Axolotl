@@ -213,7 +213,8 @@ TEST_F(BufferPoolDirtyTest, FailedFetchDoesNotConsumeFrames) {
     { auto g2 = sm.NewPage(fid, p2); }
 
     for (int i = 0; i < 10; ++i) {
-        EXPECT_THROW((void)sm.FetchRead(PageRef{fid, 9999}), AxolotlDB::utils::InvalidPageException);
+        EXPECT_THROW((void)sm.FetchRead(PageRef{fid, 9999}),
+                     AxolotlDB::utils::InvalidPageException);
     }
 
     auto a = sm.FetchRead(p0);

@@ -24,7 +24,7 @@ using storage::Tuple;
 using storage::Value;
 
 class MockChildExecutor : public AbstractExecutor {
-public:
+   public:
     MockChildExecutor(ExecutorContext* ctx, Schema schema)
         : AbstractExecutor(ctx), schema_(std::move(schema)) {}
 
@@ -33,11 +33,14 @@ public:
     }
 
     bool Next(std::vector<Tuple>* tupleBatch, std::optional<std::vector<RID>>& ridBatch) override {
-        if (!tupleBatch) return false;
+        if (!tupleBatch)
+            return false;
         tupleBatch->clear();
-        if (ridBatch.has_value()) ridBatch->clear();
+        if (ridBatch.has_value())
+            ridBatch->clear();
 
-        if (cursor_ >= data_.size()) return false;
+        if (cursor_ >= data_.size())
+            return false;
 
         const std::size_t batchSize = context_ ? context_->GetBatchSize() : 1024;
         while (cursor_ < data_.size() && tupleBatch->size() < batchSize) {
@@ -58,7 +61,7 @@ public:
         data_.emplace_back(std::move(t), r);
     }
 
-private:
+   private:
     Schema schema_;
     std::vector<std::pair<Tuple, RID>> data_;
     std::size_t cursor_ = 0;
@@ -76,11 +79,14 @@ TEST(FilterTest, PassesOnlyMatchingRows) {
         child->Add(Tuple(std::move(bytes)), RID{1, static_cast<uint16_t>(v)});
     }
 
-    auto colRef = std::make_unique<BoundExpr>(BoundColumnRef(1, 0, "val", ColumnType::INT32), ColumnType::INT32);
-    auto lit = std::make_unique<BoundExpr>(BoundLiteral(ColumnType::INT32, static_cast<int64_t>(20)), ColumnType::INT32);
-    auto pred = std::make_unique<BoundExpr>(
-        BoundBinaryOp(BinaryOperator::GREATER, std::move(colRef), std::move(lit), ColumnType::BOOLEAN),
-        ColumnType::BOOLEAN);
+    auto colRef = std::make_unique<BoundExpr>(BoundColumnRef(1, 0, "val", ColumnType::INT32),
+                                              ColumnType::INT32);
+    auto lit = std::make_unique<BoundExpr>(
+        BoundLiteral(ColumnType::INT32, static_cast<int64_t>(20)), ColumnType::INT32);
+    auto pred =
+        std::make_unique<BoundExpr>(BoundBinaryOp(BinaryOperator::GREATER, std::move(colRef),
+                                                  std::move(lit), ColumnType::BOOLEAN),
+                                    ColumnType::BOOLEAN);
 
     PhysicalFilter plan;
     plan.predicate = std::move(pred);
@@ -116,11 +122,14 @@ TEST(FilterTest, NullPredicateExcludesRow) {
     child->Add(Tuple(Tuple::Serialize(schema, {Value::Null(ColumnType::INT32)})), RID{1, 2});
     child->Add(Tuple(Tuple::Serialize(schema, {Value::Int32(30)})), RID{1, 3});
 
-    auto colRef = std::make_unique<BoundExpr>(BoundColumnRef(1, 0, "val", ColumnType::INT32), ColumnType::INT32);
-    auto lit = std::make_unique<BoundExpr>(BoundLiteral(ColumnType::INT32, static_cast<int64_t>(20)), ColumnType::INT32);
-    auto pred = std::make_unique<BoundExpr>(
-        BoundBinaryOp(BinaryOperator::GREATER, std::move(colRef), std::move(lit), ColumnType::BOOLEAN),
-        ColumnType::BOOLEAN);
+    auto colRef = std::make_unique<BoundExpr>(BoundColumnRef(1, 0, "val", ColumnType::INT32),
+                                              ColumnType::INT32);
+    auto lit = std::make_unique<BoundExpr>(
+        BoundLiteral(ColumnType::INT32, static_cast<int64_t>(20)), ColumnType::INT32);
+    auto pred =
+        std::make_unique<BoundExpr>(BoundBinaryOp(BinaryOperator::GREATER, std::move(colRef),
+                                                  std::move(lit), ColumnType::BOOLEAN),
+                                    ColumnType::BOOLEAN);
 
     PhysicalFilter plan;
     plan.predicate = std::move(pred);

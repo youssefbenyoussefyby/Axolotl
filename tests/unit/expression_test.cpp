@@ -36,16 +36,14 @@ static BoundExpr MakeNull(ColumnType t = ColumnType::INT32) {
 }
 
 static BoundExpr MakeBinOp(BinaryOperator op, BoundExpr left, BoundExpr right, ColumnType resType) {
-    return BoundExpr(
-        BoundBinaryOp(op, std::make_unique<BoundExpr>(std::move(left)),
-                      std::make_unique<BoundExpr>(std::move(right)), resType),
-        resType);
+    return BoundExpr(BoundBinaryOp(op, std::make_unique<BoundExpr>(std::move(left)),
+                                   std::make_unique<BoundExpr>(std::move(right)), resType),
+                     resType);
 }
 
 static BoundExpr MakeUnaryOp(UnaryOperator op, BoundExpr operand, ColumnType resType) {
-    return BoundExpr(
-        BoundUnaryOp(op, std::make_unique<BoundExpr>(std::move(operand)), resType),
-        resType);
+    return BoundExpr(BoundUnaryOp(op, std::make_unique<BoundExpr>(std::move(operand)), resType),
+                     resType);
 }
 
 static BoundExpr MakeColRef(uint32_t colIdx, ColumnType t) {
@@ -75,7 +73,8 @@ TEST(ExpressionTest, ArithmeticAndComparison) {
         EXPECT_EQ(val.AsInt32(), 25);
     }
     {
-        auto divZero = MakeBinOp(BinaryOperator::DIVIDE, MakeInt(10), MakeInt(0), ColumnType::INT32);
+        auto divZero =
+            MakeBinOp(BinaryOperator::DIVIDE, MakeInt(10), MakeInt(0), ColumnType::INT32);
         EXPECT_THROW((void)EvaluateConstant(divZero), std::runtime_error);
     }
     {
@@ -84,12 +83,14 @@ TEST(ExpressionTest, ArithmeticAndComparison) {
         EXPECT_THROW((void)EvaluateConstant(overflow), std::runtime_error);
     }
     {
-        auto fadd = MakeBinOp(BinaryOperator::ADD, MakeDouble(1.5), MakeDouble(2.5), ColumnType::FLOAT64);
+        auto fadd =
+            MakeBinOp(BinaryOperator::ADD, MakeDouble(1.5), MakeDouble(2.5), ColumnType::FLOAT64);
         auto val = EvaluateConstant(fadd);
         EXPECT_DOUBLE_EQ(val.AsFloat64(), 4.0);
     }
     {
-        auto fdivZero = MakeBinOp(BinaryOperator::DIVIDE, MakeDouble(1.0), MakeDouble(0.0), ColumnType::FLOAT64);
+        auto fdivZero = MakeBinOp(BinaryOperator::DIVIDE, MakeDouble(1.0), MakeDouble(0.0),
+                                  ColumnType::FLOAT64);
         EXPECT_THROW((void)EvaluateConstant(fdivZero), std::runtime_error);
     }
     {
@@ -102,22 +103,24 @@ TEST(ExpressionTest, ArithmeticAndComparison) {
         auto lt = MakeBinOp(BinaryOperator::LESS, MakeInt(4), MakeInt(5), ColumnType::BOOLEAN);
         EXPECT_TRUE(EvaluateConstant(lt).AsBool());
 
-        auto le = MakeBinOp(BinaryOperator::LESS_EQUAL, MakeInt(5), MakeInt(5), ColumnType::BOOLEAN);
+        auto le =
+            MakeBinOp(BinaryOperator::LESS_EQUAL, MakeInt(5), MakeInt(5), ColumnType::BOOLEAN);
         EXPECT_TRUE(EvaluateConstant(le).AsBool());
 
         auto gt = MakeBinOp(BinaryOperator::GREATER, MakeInt(6), MakeInt(5), ColumnType::BOOLEAN);
         EXPECT_TRUE(EvaluateConstant(gt).AsBool());
 
-        auto ge = MakeBinOp(BinaryOperator::GREATER_EQUAL, MakeInt(5), MakeInt(5), ColumnType::BOOLEAN);
+        auto ge =
+            MakeBinOp(BinaryOperator::GREATER_EQUAL, MakeInt(5), MakeInt(5), ColumnType::BOOLEAN);
         EXPECT_TRUE(EvaluateConstant(ge).AsBool());
     }
     {
-        auto strEq = MakeBinOp(BinaryOperator::EQUAL, MakeStr("axolotl"),
-                               MakeStr("axolotl"), ColumnType::BOOLEAN);
+        auto strEq = MakeBinOp(BinaryOperator::EQUAL, MakeStr("axolotl"), MakeStr("axolotl"),
+                               ColumnType::BOOLEAN);
         EXPECT_TRUE(EvaluateConstant(strEq).AsBool());
 
-        auto strLt = MakeBinOp(BinaryOperator::LESS, MakeStr("apple"),
-                               MakeStr("banana"), ColumnType::BOOLEAN);
+        auto strLt = MakeBinOp(BinaryOperator::LESS, MakeStr("apple"), MakeStr("banana"),
+                               ColumnType::BOOLEAN);
         EXPECT_TRUE(EvaluateConstant(strLt).AsBool());
     }
     {
@@ -148,7 +151,8 @@ TEST(ExpressionTest, NullPropagatesThroughComparison) {
         EXPECT_TRUE(val.IsNull());
     }
     {
-        auto notNull = MakeUnaryOp(UnaryOperator::NOT, MakeNull(ColumnType::BOOLEAN), ColumnType::BOOLEAN);
+        auto notNull =
+            MakeUnaryOp(UnaryOperator::NOT, MakeNull(ColumnType::BOOLEAN), ColumnType::BOOLEAN);
         auto val = EvaluateConstant(notNull);
         EXPECT_TRUE(val.IsNull());
     }
@@ -160,37 +164,36 @@ TEST(ExpressionTest, NullPropagatesThroughComparison) {
         EXPECT_FALSE(val.AsBool());
     }
     {
-        auto andTrue = MakeBinOp(BinaryOperator::AND, MakeNull(ColumnType::BOOLEAN),
-                                 MakeBool(true), ColumnType::BOOLEAN);
+        auto andTrue = MakeBinOp(BinaryOperator::AND, MakeNull(ColumnType::BOOLEAN), MakeBool(true),
+                                 ColumnType::BOOLEAN);
         auto val = EvaluateConstant(andTrue);
         EXPECT_TRUE(val.IsNull());
     }
     {
-        auto orTrue = MakeBinOp(BinaryOperator::OR, MakeNull(ColumnType::BOOLEAN),
-                                MakeBool(true), ColumnType::BOOLEAN);
+        auto orTrue = MakeBinOp(BinaryOperator::OR, MakeNull(ColumnType::BOOLEAN), MakeBool(true),
+                                ColumnType::BOOLEAN);
         auto val = EvaluateConstant(orTrue);
         EXPECT_FALSE(val.IsNull());
         EXPECT_TRUE(val.AsBool());
     }
     {
-        auto orFalse = MakeBinOp(BinaryOperator::OR, MakeNull(ColumnType::BOOLEAN),
-                                 MakeBool(false), ColumnType::BOOLEAN);
+        auto orFalse = MakeBinOp(BinaryOperator::OR, MakeNull(ColumnType::BOOLEAN), MakeBool(false),
+                                 ColumnType::BOOLEAN);
         auto val = EvaluateConstant(orFalse);
         EXPECT_TRUE(val.IsNull());
     }
     {
-        auto nullArithmetic = MakeBinOp(BinaryOperator::ADD, MakeNull(), MakeInt(5), ColumnType::INT32);
+        auto nullArithmetic =
+            MakeBinOp(BinaryOperator::ADD, MakeNull(), MakeInt(5), ColumnType::INT32);
         auto val = EvaluateConstant(nullArithmetic);
         EXPECT_TRUE(val.IsNull());
     }
 }
 
 TEST(ExpressionTest, TupleEvaluation) {
-    Schema schema{{
-        storage::ColumnDef{"id", ColumnType::INT32},
-        storage::ColumnDef{"name", ColumnType::VARCHAR},
-        storage::ColumnDef{"score", ColumnType::FLOAT64}
-    }};
+    Schema schema{{storage::ColumnDef{"id", ColumnType::INT32},
+                   storage::ColumnDef{"name", ColumnType::VARCHAR},
+                   storage::ColumnDef{"score", ColumnType::FLOAT64}}};
 
     std::vector<Value> row{Value::Int32(42), Value::Varchar("bob"), Value::Float64(98.5)};
     auto bytes = Tuple::Serialize(schema, row);
@@ -204,8 +207,8 @@ TEST(ExpressionTest, TupleEvaluation) {
     EXPECT_EQ(Evaluate(col1, tuple, schema).AsVarchar(), "bob");
     EXPECT_DOUBLE_EQ(Evaluate(col2, tuple, schema).AsFloat64(), 98.5);
 
-    auto pred = MakeBinOp(BinaryOperator::GREATER, MakeColRef(0, ColumnType::INT32),
-                          MakeInt(40), ColumnType::BOOLEAN);
+    auto pred = MakeBinOp(BinaryOperator::GREATER, MakeColRef(0, ColumnType::INT32), MakeInt(40),
+                          ColumnType::BOOLEAN);
     auto predVal = Evaluate(pred, tuple, schema);
     EXPECT_TRUE(IsTrue(predVal));
 

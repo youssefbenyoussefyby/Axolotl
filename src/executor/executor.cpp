@@ -28,10 +28,11 @@ ExecutorPtr BuildChild(const PhysicalNode& node, std::size_t i, ExecutorContext*
 }
 
 [[noreturn]] void NotImplemented(const char* name) {
-    throw std::logic_error(std::string("CreateExecutor: ") + name + " executor is not implemented yet");
+    throw std::logic_error(std::string("CreateExecutor: ") + name +
+                           " executor is not implemented yet");
 }
 
-} // namespace
+}  // namespace
 
 ExecutorPtr CreateExecutor(const PhysicalNode& plan, ExecutorContext* ctx) {
     if (ctx == nullptr) {
@@ -39,77 +40,80 @@ ExecutorPtr CreateExecutor(const PhysicalNode& plan, ExecutorContext* ctx) {
     }
 
     switch (plan.Type()) {
-    case PhysicalNodeType::SeqScan: {
-        ExpectChildren(plan, 0, "SeqScan");
-        return std::make_unique<SeqScanExecutor>(ctx, static_cast<const optimizer::PhysicalSeqScan&>(plan));
-    }
-    case PhysicalNodeType::Insert: {
-        ExpectChildren(plan, 0, "Insert");
-        NotImplemented("Insert");
-    }
-    case PhysicalNodeType::Filter: {
-        ExpectChildren(plan, 1, "Filter");
-        auto child = BuildChild(plan, 0, ctx);
-        return std::make_unique<FilterExecutor>(ctx, static_cast<const optimizer::PhysicalFilter&>(plan), std::move(child));
-    }
-    case PhysicalNodeType::Project: {
-        ExpectChildren(plan, 1, "Project");
-        auto child = BuildChild(plan, 0, ctx);
-        return std::make_unique<ProjectionExecutor>(ctx, static_cast<const optimizer::PhysicalProject&>(plan), std::move(child));
-    }
-    case PhysicalNodeType::HashAggregate: {
-        ExpectChildren(plan, 1, "HashAggregate");
-        auto child = BuildChild(plan, 0, ctx);
-        (void)child;
-        NotImplemented("HashAggregate");
-    }
-    case PhysicalNodeType::Sort: {
-        ExpectChildren(plan, 1, "Sort");
-        auto child = BuildChild(plan, 0, ctx);
-        (void)child;
-        NotImplemented("Sort");
-    }
-    case PhysicalNodeType::Limit: {
-        ExpectChildren(plan, 1, "Limit");
-        auto child = BuildChild(plan, 0, ctx);
-        (void)child;
-        NotImplemented("Limit");
-    }
-    case PhysicalNodeType::Update: {
-        ExpectChildren(plan, 1, "Update");
-        auto child = BuildChild(plan, 0, ctx);
-        (void)child;
-        NotImplemented("Update");
-    }
-    case PhysicalNodeType::Delete: {
-        ExpectChildren(plan, 1, "Delete");
-        auto child = BuildChild(plan, 0, ctx);
-        (void)child;
-        NotImplemented("Delete");
-    }
-    case PhysicalNodeType::NestedLoopJoin: {
-        ExpectChildren(plan, 2, "NestedLoopJoin");
-        auto left = BuildChild(plan, 0, ctx);
-        auto right = BuildChild(plan, 1, ctx);
-        (void)left;
-        (void)right;
-        NotImplemented("NestedLoopJoin");
-    }
-    case PhysicalNodeType::HashJoin: {
-        ExpectChildren(plan, 2, "HashJoin");
-        auto build = BuildChild(plan, 0, ctx);
-        auto probe = BuildChild(plan, 1, ctx);
-        (void)build;
-        (void)probe;
-        NotImplemented("HashJoin");
-    }
-    case PhysicalNodeType::CreateTable:
-        NotImplemented("CreateTable");
-    case PhysicalNodeType::DropTable:
-        NotImplemented("DropTable");
+        case PhysicalNodeType::SeqScan: {
+            ExpectChildren(plan, 0, "SeqScan");
+            return std::make_unique<SeqScanExecutor>(
+                ctx, static_cast<const optimizer::PhysicalSeqScan&>(plan));
+        }
+        case PhysicalNodeType::Insert: {
+            ExpectChildren(plan, 0, "Insert");
+            NotImplemented("Insert");
+        }
+        case PhysicalNodeType::Filter: {
+            ExpectChildren(plan, 1, "Filter");
+            auto child = BuildChild(plan, 0, ctx);
+            return std::make_unique<FilterExecutor>(
+                ctx, static_cast<const optimizer::PhysicalFilter&>(plan), std::move(child));
+        }
+        case PhysicalNodeType::Project: {
+            ExpectChildren(plan, 1, "Project");
+            auto child = BuildChild(plan, 0, ctx);
+            return std::make_unique<ProjectionExecutor>(
+                ctx, static_cast<const optimizer::PhysicalProject&>(plan), std::move(child));
+        }
+        case PhysicalNodeType::HashAggregate: {
+            ExpectChildren(plan, 1, "HashAggregate");
+            auto child = BuildChild(plan, 0, ctx);
+            (void)child;
+            NotImplemented("HashAggregate");
+        }
+        case PhysicalNodeType::Sort: {
+            ExpectChildren(plan, 1, "Sort");
+            auto child = BuildChild(plan, 0, ctx);
+            (void)child;
+            NotImplemented("Sort");
+        }
+        case PhysicalNodeType::Limit: {
+            ExpectChildren(plan, 1, "Limit");
+            auto child = BuildChild(plan, 0, ctx);
+            (void)child;
+            NotImplemented("Limit");
+        }
+        case PhysicalNodeType::Update: {
+            ExpectChildren(plan, 1, "Update");
+            auto child = BuildChild(plan, 0, ctx);
+            (void)child;
+            NotImplemented("Update");
+        }
+        case PhysicalNodeType::Delete: {
+            ExpectChildren(plan, 1, "Delete");
+            auto child = BuildChild(plan, 0, ctx);
+            (void)child;
+            NotImplemented("Delete");
+        }
+        case PhysicalNodeType::NestedLoopJoin: {
+            ExpectChildren(plan, 2, "NestedLoopJoin");
+            auto left = BuildChild(plan, 0, ctx);
+            auto right = BuildChild(plan, 1, ctx);
+            (void)left;
+            (void)right;
+            NotImplemented("NestedLoopJoin");
+        }
+        case PhysicalNodeType::HashJoin: {
+            ExpectChildren(plan, 2, "HashJoin");
+            auto build = BuildChild(plan, 0, ctx);
+            auto probe = BuildChild(plan, 1, ctx);
+            (void)build;
+            (void)probe;
+            NotImplemented("HashJoin");
+        }
+        case PhysicalNodeType::CreateTable:
+            NotImplemented("CreateTable");
+        case PhysicalNodeType::DropTable:
+            NotImplemented("DropTable");
     }
 
     throw std::logic_error("CreateExecutor: unknown physical node type");
 }
 
-} // namespace AxolotlDB::executor
+}  // namespace AxolotlDB::executor

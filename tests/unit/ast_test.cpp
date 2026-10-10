@@ -1,5 +1,6 @@
 ﻿#include <gtest/gtest.h>
 #include <parser/ast.h>
+
 #include <memory>
 #include <string>
 #include <vector>
@@ -64,8 +65,7 @@ TEST(AstTest, EveryNodeCarriesPosition) {
     EXPECT_EQ(unaryOp.column, 11u);
     EXPECT_TRUE(std::holds_alternative<UnaryOp>(unaryOp.node));
 
-    Expr binaryOp(BinaryOp{BinaryOperator::ADD,
-                           std::make_unique<Expr>(Literal{int64_t{1}}, 5, 1),
+    Expr binaryOp(BinaryOp{BinaryOperator::ADD, std::make_unique<Expr>(Literal{int64_t{1}}, 5, 1),
                            std::make_unique<Expr>(Literal{int64_t{2}}, 5, 5)},
                   5, 3);
     EXPECT_EQ(binaryOp.line, 5u);
@@ -110,7 +110,8 @@ TEST(AstTest, PrinterRoundTripsSimpleSelect) {
 
     auto lhs = std::make_unique<Expr>(ColumnRef{"id"});
     auto rhs = std::make_unique<Expr>(Literal{int64_t{1}});
-    select.where = std::make_unique<Expr>(BinaryOp{BinaryOperator::EQUAL, std::move(lhs), std::move(rhs)});
+    select.where =
+        std::make_unique<Expr>(BinaryOp{BinaryOperator::EQUAL, std::move(lhs), std::move(rhs)});
 
     Stmt stmt(std::move(select));
     EXPECT_EQ(ToString(stmt), "SELECT id, name FROM users WHERE id = 1");
@@ -127,32 +128,27 @@ TEST(AstTest, PrinterRoundTripsComplexSelect) {
 
     std::vector<ExprPtr> countArgs;
     countArgs.push_back(std::make_unique<Expr>(Star{}));
-    select.projection.push_back(SelectItem(std::make_unique<Expr>(FunctionCall{"COUNT", std::move(countArgs)})));
+    select.projection.push_back(
+        SelectItem(std::make_unique<Expr>(FunctionCall{"COUNT", std::move(countArgs)})));
 
     select.fromTable = "a";
 
     // JOIN b ON a.id = b.a_id
     auto joinLhs = std::make_unique<Expr>(ColumnRef{"a", "id"});
     auto joinRhs = std::make_unique<Expr>(ColumnRef{"b", "a_id"});
-    auto onCond = std::make_unique<Expr>(BinaryOp{BinaryOperator::EQUAL, std::move(joinLhs), std::move(joinRhs)});
+    auto onCond = std::make_unique<Expr>(
+        BinaryOp{BinaryOperator::EQUAL, std::move(joinLhs), std::move(joinRhs)});
     select.joins.push_back(JoinClause("b", std::move(onCond), JoinType::INNER));
 
     // WHERE a.x > 5 AND b.y = 'z'
-    auto cond1 = std::make_unique<Expr>(BinaryOp{
-        BinaryOperator::GREATER,
-        std::make_unique<Expr>(ColumnRef{"a", "x"}),
-        std::make_unique<Expr>(Literal{int64_t{5}})
-    });
-    auto cond2 = std::make_unique<Expr>(BinaryOp{
-        BinaryOperator::EQUAL,
-        std::make_unique<Expr>(ColumnRef{"b", "y"}),
-        std::make_unique<Expr>(Literal{std::string{"z"}})
-    });
-    select.where = std::make_unique<Expr>(BinaryOp{
-        BinaryOperator::AND,
-        std::move(cond1),
-        std::move(cond2)
-    });
+    auto cond1 = std::make_unique<Expr>(BinaryOp{BinaryOperator::GREATER,
+                                                 std::make_unique<Expr>(ColumnRef{"a", "x"}),
+                                                 std::make_unique<Expr>(Literal{int64_t{5}})});
+    auto cond2 = std::make_unique<Expr>(
+        BinaryOp{BinaryOperator::EQUAL, std::make_unique<Expr>(ColumnRef{"b", "y"}),
+                 std::make_unique<Expr>(Literal{std::string{"z"}})});
+    select.where =
+        std::make_unique<Expr>(BinaryOp{BinaryOperator::AND, std::move(cond1), std::move(cond2)});
 
     // GROUP BY a.id
     select.groupBy.push_back(std::make_unique<Expr>(ColumnRef{"a", "id"}));
@@ -160,11 +156,10 @@ TEST(AstTest, PrinterRoundTripsComplexSelect) {
     // HAVING COUNT(*) > 2
     std::vector<ExprPtr> havingCountArgs;
     havingCountArgs.push_back(std::make_unique<Expr>(Star{}));
-    select.having = std::make_unique<Expr>(BinaryOp{
-        BinaryOperator::GREATER,
-        std::make_unique<Expr>(FunctionCall{"COUNT", std::move(havingCountArgs)}),
-        std::make_unique<Expr>(Literal{int64_t{2}})
-    });
+    select.having = std::make_unique<Expr>(
+        BinaryOp{BinaryOperator::GREATER,
+                 std::make_unique<Expr>(FunctionCall{"COUNT", std::move(havingCountArgs)}),
+                 std::make_unique<Expr>(Literal{int64_t{2}})});
 
     // ORDER BY a.id DESC
     select.orderBy.push_back(OrderByItem(std::make_unique<Expr>(ColumnRef{"a", "id"}), true));
@@ -207,11 +202,9 @@ TEST(AstTest, PrinterRoundTripsUpdateAndDeleteStatements) {
     UpdateStmt update;
     update.table = "t";
     update.assignments.push_back({"name", std::make_unique<Expr>(Literal{std::string{"c"}})});
-    update.where = std::make_unique<Expr>(BinaryOp{
-        BinaryOperator::EQUAL,
-        std::make_unique<Expr>(ColumnRef{"id"}),
-        std::make_unique<Expr>(Literal{int64_t{1}})
-    });
+    update.where = std::make_unique<Expr>(BinaryOp{BinaryOperator::EQUAL,
+                                                   std::make_unique<Expr>(ColumnRef{"id"}),
+                                                   std::make_unique<Expr>(Literal{int64_t{1}})});
 
     Stmt updateStmt(std::move(update));
     EXPECT_EQ(ToString(updateStmt), "UPDATE t SET name = 'c' WHERE id = 1");
@@ -219,11 +212,9 @@ TEST(AstTest, PrinterRoundTripsUpdateAndDeleteStatements) {
     // DELETE FROM t WHERE id > 5
     DeleteStmt del;
     del.table = "t";
-    del.where = std::make_unique<Expr>(BinaryOp{
-        BinaryOperator::GREATER,
-        std::make_unique<Expr>(ColumnRef{"id"}),
-        std::make_unique<Expr>(Literal{int64_t{5}})
-    });
+    del.where = std::make_unique<Expr>(BinaryOp{BinaryOperator::GREATER,
+                                                std::make_unique<Expr>(ColumnRef{"id"}),
+                                                std::make_unique<Expr>(Literal{int64_t{5}})});
 
     Stmt delStmt(std::move(del));
     EXPECT_EQ(ToString(delStmt), "DELETE FROM t WHERE id > 5");
@@ -254,7 +245,8 @@ TEST(AstTest, PrinterRoundTripsCreateTableAndDropTable) {
     create.columns.push_back(c3);
 
     Stmt createStmt(std::move(create));
-    EXPECT_EQ(ToString(createStmt), "CREATE TABLE t (id INT32 PRIMARY KEY, name VARCHAR(64), emb VECTOR(768) NOT NULL)");
+    EXPECT_EQ(ToString(createStmt),
+              "CREATE TABLE t (id INT32 PRIMARY KEY, name VARCHAR(64), emb VECTOR(768) NOT NULL)");
 
     // DROP TABLE t
     DropTableStmt drop;
@@ -273,19 +265,13 @@ TEST(AstTest, ExpressionsAndOperators) {
     EXPECT_EQ(ToString(negExpr), "-x");
 
     // Vector L2 distance: vec1 <-> vec2
-    Expr l2Expr(BinaryOp{
-        BinaryOperator::VECTOR_L2,
-        std::make_unique<Expr>(ColumnRef{"vec1"}),
-        std::make_unique<Expr>(ColumnRef{"vec2"})
-    });
+    Expr l2Expr(BinaryOp{BinaryOperator::VECTOR_L2, std::make_unique<Expr>(ColumnRef{"vec1"}),
+                         std::make_unique<Expr>(ColumnRef{"vec2"})});
     EXPECT_EQ(ToString(l2Expr), "vec1 <-> vec2");
 
     // Vector cosine distance: vec1 <=> vec2
-    Expr cosExpr(BinaryOp{
-        BinaryOperator::VECTOR_COSINE,
-        std::make_unique<Expr>(ColumnRef{"vec1"}),
-        std::make_unique<Expr>(ColumnRef{"vec2"})
-    });
+    Expr cosExpr(BinaryOp{BinaryOperator::VECTOR_COSINE, std::make_unique<Expr>(ColumnRef{"vec1"}),
+                          std::make_unique<Expr>(ColumnRef{"vec2"})});
     EXPECT_EQ(ToString(cosExpr), "vec1 <=> vec2");
 
     // Qualified star: t.*

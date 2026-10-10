@@ -23,7 +23,7 @@ using storage::Tuple;
 using storage::Value;
 
 class MockExecutor : public AbstractExecutor {
-public:
+   public:
     explicit MockExecutor(ExecutorContext* ctx, Schema schema)
         : AbstractExecutor(ctx), schema_(std::move(schema)) {}
 
@@ -63,7 +63,7 @@ public:
         data_.emplace_back(std::move(t), r);
     }
 
-private:
+   private:
     Schema schema_;
     std::vector<std::pair<Tuple, RID>> data_;
     std::size_t cursor_ = 0;
@@ -136,14 +136,13 @@ TEST(ExecutorTest, TupleSurvivesEvictionTriggeredByPipeline) {
         storage::StorageManager sm(2);
         catalog::Catalog cat(sm);
 
-        Schema schema{{
-            ColumnDef{"id", ColumnType::INT32},
-            ColumnDef{"payload", ColumnType::VARCHAR}
-        }};
+        Schema schema{
+            {ColumnDef{"id", ColumnType::INT32}, ColumnDef{"payload", ColumnType::VARCHAR}}};
         cat.CreateTable("t", schema);
         auto& heap = cat.GetTableHeap("t");
 
-        auto b1 = Tuple::Serialize(schema, {Value::Int32(1), Value::Varchar("tuple-original-content")});
+        auto b1 =
+            Tuple::Serialize(schema, {Value::Int32(1), Value::Varchar("tuple-original-content")});
         auto rid1 = heap.Insert(b1);
 
         storage::ReadPageGuard guard;

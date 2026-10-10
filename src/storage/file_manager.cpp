@@ -27,7 +27,9 @@ std::string ErrnoMessage(int err) {
 FileManager::FileManager(const std::string& path, uint32_t page_size)
     : path_(path), page_size_(page_size) {
     if (page_size != PAGE_SIZE)
-        throw std::invalid_argument("FileManager: page_size must be exactly " +std::to_string(PAGE_SIZE) + ", got " +std::to_string(page_size));
+        throw std::invalid_argument("FileManager: page_size must be exactly " +
+                                    std::to_string(PAGE_SIZE) + ", got " +
+                                    std::to_string(page_size));
 
     file_.open(path_, std::ios::in | std::ios::out | std::ios::binary);
     if (!file_.is_open()) {
@@ -38,7 +40,8 @@ FileManager::FileManager(const std::string& path, uint32_t page_size)
         file_.close();
         file_.open(path_, std::ios::in | std::ios::out | std::ios::binary);
         if (!file_.is_open()) {
-            throw AxolotlDB::utils::IOException("Cannot open database file after creation: " +path_);
+            throw AxolotlDB::utils::IOException("Cannot open database file after creation: " +
+                                                path_);
         }
     }
     file_.seekg(0, std::ios::end);
@@ -56,7 +59,7 @@ FileManager::FileManager(const std::string& path, uint32_t page_size)
 #endif
     if (sync_fd_ < 0) {
         throw AxolotlDB::utils::IOException("Cannot open sync descriptor for " + path_ + ": " +
-                                           ErrnoMessage(errno));
+                                            ErrnoMessage(errno));
     }
     page_count_.store(static_cast<int32_t>(file_size / page_size_), std::memory_order_relaxed);
 }
@@ -84,7 +87,9 @@ const std::string& FileManager::FilePath() const noexcept {
 
 void FileManager::EnsureValidPageId(PageId id) const {
     if (id < 0 || id >= page_count_.load(std::memory_order_relaxed)) {
-        throw AxolotlDB::utils::InvalidPageException("Page ID " + std::to_string(id) + " is out of range (total pages: " +std::to_string(page_count_.load(std::memory_order_relaxed)) + ")");
+        throw AxolotlDB::utils::InvalidPageException(
+            "Page ID " + std::to_string(id) + " is out of range (total pages: " +
+            std::to_string(page_count_.load(std::memory_order_relaxed)) + ")");
     }
 }
 
@@ -146,7 +151,8 @@ void FileManager::WritePage(PageId page_id, const Page& page) {
 void FileManager::Sync() {
     std::lock_guard<std::mutex> lock(mutex_);
     if (sync_failed_) {
-        throw AxolotlDB::utils::IOException("FileManager is unusable: a previous fsync failed on " +path_);
+        throw AxolotlDB::utils::IOException("FileManager is unusable: a previous fsync failed on " +
+                                            path_);
     }
     if (!file_.good()) {
         throw AxolotlDB::utils::IOException("Stream is in a failed state; cannot sync " + path_);
@@ -167,7 +173,8 @@ void FileManager::Sync() {
 
     if (rc != 0) {
         sync_failed_ = true;
-        throw AxolotlDB::utils::IOException("fsync failed on " + path_ + ": " + ErrnoMessage(errno));
+        throw AxolotlDB::utils::IOException("fsync failed on " + path_ + ": " +
+                                            ErrnoMessage(errno));
     }
 }
 

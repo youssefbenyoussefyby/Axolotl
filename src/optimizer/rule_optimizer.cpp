@@ -19,7 +19,7 @@ bool IsEquiCondition(const parser::ast::BoundExpr* expr) {
     return false;
 }
 
-} // namespace
+}  // namespace
 
 JoinAlgorithm SelectJoinAlgorithm(const LogicalNestedLoopJoin& join) {
     if (IsEquiCondition(join.condition.get())) {
@@ -28,4 +28,4 @@ JoinAlgorithm SelectJoinAlgorithm(const LogicalNestedLoopJoin& join) {
     return JoinAlgorithm::NestedLoop;
 }
 
-} // namespace AxolotlDB::optimizer
+}  // namespace AxolotlDB::optimizer

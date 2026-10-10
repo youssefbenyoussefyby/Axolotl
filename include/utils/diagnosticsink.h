@@ -1,27 +1,25 @@
 ﻿#pragma once
 
-#include<string>
 #include <cstdint>
-#include<vector>
+#include <string>
+#include <vector>
 
-namespace AxolotlDB::utils{
-    struct Diagnostic{
-        std::string message;
-        uint16_t line ;
-        uint16_t column;
-        std::string lexem; 
-    };
+namespace AxolotlDB::utils {
+struct Diagnostic {
+    std::string message;
+    uint16_t line;
+    uint16_t column;
+    std::string lexem;
+};
 
-    class DiagnosticSink{
-        public:
+class DiagnosticSink {
+   public:
+    DiagnosticSink() = default;
+    void addDiagnostic(Diagnostic);
+    [[nodiscard]] std::vector<Diagnostic> getDiagnostics();
+    [[nodiscard]] bool hasError() const;
 
-            DiagnosticSink() = default;
-            void addDiagnostic(Diagnostic);
-            [[nodiscard]] std::vector<Diagnostic> getDiagnostics();
-            [[nodiscard]] bool hasError() const;
-        private:
-            std::vector<Diagnostic> diagnostics;
-
-
-    };
-}
+   private:
+    std::vector<Diagnostic> diagnostics;
+};
+}  // namespace AxolotlDB::utils

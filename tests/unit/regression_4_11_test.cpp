@@ -71,7 +71,8 @@ TEST_F(RegressionFix4_11, ExceptionMessageContainsNumericId_RegressionFix4_11_1)
     } catch (const utils::StorageException& e) {
         EXPECT_NE(std::string(e.what()).find("9999"), std::string::npos)
             << "Message must embed the numeric id; before fix '+id' on uint32_t "
-               "was pointer arithmetic producing UB/garbage: " << e.what();
+               "was pointer arithmetic producing UB/garbage: "
+            << e.what();
     }
 
     // GetTableId path
@@ -106,8 +107,8 @@ TEST_F(RegressionFix4_11, CatalogMetadataDoesNotClobberPageHeader_RegressionFix4
         storage::StorageManager sm(32);
         catalog::Catalog cat(sm);
         cat.CreateTable("t", storage::Schema{{
-            storage::ColumnDef{"x", storage::ColumnType::INT32},
-        }});
+                                 storage::ColumnDef{"x", storage::ColumnType::INT32},
+                             }});
         sm.FlushAll();
     }
 
@@ -123,8 +124,8 @@ TEST_F(RegressionFix4_11, CatalogMetadataDoesNotClobberPageHeader_RegressionFix4
         int32_t stored_page_id = 0;
         std::memcpy(&stored_page_id, raw.data(), sizeof(stored_page_id));
         EXPECT_EQ(stored_page_id, 0)
-            << "page_id at offset 0 was overwritten (expected 0, got "
-            << stored_page_id << ").\n"
+            << "page_id at offset 0 was overwritten (expected 0, got " << stored_page_id
+            << ").\n"
                "Before fix, magic 0xCA7A1060 was written at byte 0, "
                "clobbering the PageHeader.";
 
@@ -149,34 +150,36 @@ TEST_F(RegressionFix4_11, CountersDoNotDesyncAcrossTwoVectorTables_RegressionFix
     catalog::Catalog cat(sm);
 
     const auto schema = storage::Schema{{
-        storage::ColumnDef{"id",  storage::ColumnType::INT32},
+        storage::ColumnDef{"id", storage::ColumnType::INT32},
         storage::ColumnDef{"emb", storage::ColumnType::VECTOR, false, 4},
     }};
 
-    const TableId  t1 = cat.CreateTable("first",  schema);
-    const HeapId   h1 = cat.GetVectorHeap(t1, "emb").Id();
+    const TableId t1 = cat.CreateTable("first", schema);
+    const HeapId h1 = cat.GetVectorHeap(t1, "emb").Id();
 
-    const TableId  t2 = cat.CreateTable("second", schema);
-    const HeapId   h2 = cat.GetVectorHeap(t2, "emb").Id();
+    const TableId t2 = cat.CreateTable("second", schema);
+    const HeapId h2 = cat.GetVectorHeap(t2, "emb").Id();
 
     EXPECT_LT(t1, t2) << "table IDs must be strictly increasing";
     EXPECT_LT(h1, h2) << "heap IDs must be strictly increasing";
 
     // Under the copy-paste bug h1 == next value of next_table_id_ (not heap),
     // so h1 == t2 in the simplest failure case.
-    EXPECT_NE(h1, t2)
-        << "heap id from first table (" << h1 << ") must not equal second "
-           "table id (" << t2 << ").\n"
-           "Before fix, AllocateHeapId incremented next_table_id_ instead of "
-           "next_heap_id_, making these collide.";
+    EXPECT_NE(h1, t2) << "heap id from first table (" << h1
+                      << ") must not equal second "
+                         "table id ("
+                      << t2
+                      << ").\n"
+                         "Before fix, AllocateHeapId incremented next_table_id_ instead of "
+                         "next_heap_id_, making these collide.";
     EXPECT_NE(h1, INVALID_HEAP_ID);
     EXPECT_NE(h2, INVALID_HEAP_ID);
 
     // The next explicit AllocateHeapId() must be > h2.
     const HeapId h3 = cat.AllocateHeapId();
-    EXPECT_GT(h3, h2)
-        << "next_heap_id_ must have been tracking the heap counter exclusively; "
-           "got h3=" << h3 << " which is not > h2=" << h2;
+    EXPECT_GT(h3, h2) << "next_heap_id_ must have been tracking the heap counter exclusively; "
+                         "got h3="
+                      << h3 << " which is not > h2=" << h2;
 }
 
 // ===========================================================================
@@ -213,12 +216,14 @@ TEST_F(RegressionFix4_11, LoadOffsetMatchesPersistOffset_RegressionFix4_11_4) {
         for (int i = 0; i < kN; ++i) {
             const std::string name = "t" + std::to_string(i);
             EXPECT_NO_THROW((void)cat.GetTableId(name))
-                << "Table '" << name << "' must survive reopen.\n"
+                << "Table '" << name
+                << "' must survive reopen.\n"
                    "Before fix, LoadCatalogMetadata read from byte 0 (PageHeader) "
                    "instead of byte 24, so magic check failed or num_tables==0.";
 
             EXPECT_EQ(cat.GetTableId(name), orig_ids[static_cast<size_t>(i)])
-                << "TableId for '" << name << "' must match first session.\n"
+                << "TableId for '" << name
+                << "' must match first session.\n"
                    "Before fix, misaligned reads corrupted every stored TableId.";
 
             EXPECT_EQ(cat.GetSchema(orig_ids[static_cast<size_t>(i)]).ColumnCount(), 1u);
@@ -264,8 +269,7 @@ TEST_F(RegressionFix4_11, ExactlyOnePageWide_RegressionFix4_11_5a) {
     // With 24-byte header math that must occupy 2 data pages (3 file pages).
     // If useable_page_size silently reverts to PAGE_SIZE, 1024 floats fit in
     // one data page and this assertion turns red.
-    const uint32_t old_one_page_seam =
-        static_cast<uint32_t>(PAGE_SIZE / sizeof(float));
+    const uint32_t old_one_page_seam = static_cast<uint32_t>(PAGE_SIZE / sizeof(float));
     ASSERT_EQ(old_one_page_seam, 1024u);
     const std::string path_old = (dir / "vh_1024.db").string();
     {
@@ -293,7 +297,8 @@ TEST_F(RegressionFix4_11, OneMoreFloatSpansTwo_RegressionFix4_11_5b) {
         EXPECT_EQ(vh.Put(vec), 0u);
         const auto got = vh.Get(0u);
         ASSERT_EQ(got.size(), dim_two);
-        for (float f : got) EXPECT_FLOAT_EQ(f, 2.0f);
+        for (float f : got)
+            EXPECT_FLOAT_EQ(f, 2.0f);
         vh.Sync();
     }
 
@@ -332,8 +337,8 @@ TEST_F(RegressionFix4_11, PersistenceContractViaStorageManagerAPI_RegressionFix4
         const storage::FileId fid = sm.OpenFile(db_path.string());
         storage::TableHeap th(sm, fid);
         for (const auto& p : payloads) {
-            auto sp = std::span<const std::byte>(
-                reinterpret_cast<const std::byte*>(p.data()), p.size());
+            auto sp =
+                std::span<const std::byte>(reinterpret_cast<const std::byte*>(p.data()), p.size());
             rids.push_back(th.Insert(sp));
         }
         sm.FlushAll();
@@ -348,7 +353,8 @@ TEST_F(RegressionFix4_11, PersistenceContractViaStorageManagerAPI_RegressionFix4
             const auto bytes = th.Get(rids[static_cast<size_t>(i)], g);
             const std::string got(reinterpret_cast<const char*>(bytes.data()), bytes.size());
             EXPECT_EQ(got, payloads[static_cast<size_t>(i)])
-                << "Row " << i << " lost after reopen through StorageManager.\n"
+                << "Row " << i
+                << " lost after reopen through StorageManager.\n"
                    "Must fail if eviction write-back is skipped even when FlushAll remains.";
         }
     }
@@ -369,8 +375,7 @@ TEST_F(RegressionFix4_11, FlippedByteFailsValidateOrThrow_RegressionFix4_11_7) {
     p.SetPageId(0);
     {
         const std::string data(16, 'A');
-        std::span<const std::byte> sp{
-            reinterpret_cast<const std::byte*>(data.data()), data.size()};
+        std::span<const std::byte> sp{reinterpret_cast<const std::byte*>(data.data()), data.size()};
         (void)p.InsertTuple(sp);
     }
     p.UpdateChecksum();
@@ -378,8 +383,7 @@ TEST_F(RegressionFix4_11, FlippedByteFailsValidateOrThrow_RegressionFix4_11_7) {
     // Sanity: correct page must pass.
     {
         Page good(p.RawData());
-        EXPECT_NO_THROW(good.ValidateOrThrow())
-            << "Correct checksum must pass ValidateOrThrow";
+        EXPECT_NO_THROW(good.ValidateOrThrow()) << "Correct checksum must pass ValidateOrThrow";
     }
 
     // Flip one bit in the payload area (byte 100, safely past the header).

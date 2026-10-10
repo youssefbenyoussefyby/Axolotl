@@ -24,7 +24,7 @@ using storage::Tuple;
 using storage::Value;
 
 class MockChildExecutorProj : public AbstractExecutor {
-public:
+   public:
     MockChildExecutorProj(ExecutorContext* ctx, Schema schema)
         : AbstractExecutor(ctx), schema_(std::move(schema)) {}
 
@@ -33,11 +33,14 @@ public:
     }
 
     bool Next(std::vector<Tuple>* tupleBatch, std::optional<std::vector<RID>>& ridBatch) override {
-        if (!tupleBatch) return false;
+        if (!tupleBatch)
+            return false;
         tupleBatch->clear();
-        if (ridBatch.has_value()) ridBatch->clear();
+        if (ridBatch.has_value())
+            ridBatch->clear();
 
-        if (cursor_ >= data_.size()) return false;
+        if (cursor_ >= data_.size())
+            return false;
 
         const std::size_t batchSize = context_ ? context_->GetBatchSize() : 1024;
         while (cursor_ < data_.size() && tupleBatch->size() < batchSize) {
@@ -58,18 +61,15 @@ public:
         data_.emplace_back(std::move(t), r);
     }
 
-private:
+   private:
     Schema schema_;
     std::vector<std::pair<Tuple, RID>> data_;
     std::size_t cursor_ = 0;
 };
 
 TEST(ProjectionTest, OutputSchemaMatchesProjectionList) {
-    Schema inputSchema{{
-        ColumnDef{"a", ColumnType::INT32},
-        ColumnDef{"b", ColumnType::VARCHAR},
-        ColumnDef{"c", ColumnType::FLOAT64}
-    }};
+    Schema inputSchema{{ColumnDef{"a", ColumnType::INT32}, ColumnDef{"b", ColumnType::VARCHAR},
+                        ColumnDef{"c", ColumnType::FLOAT64}}};
 
     storage::StorageManager sm(8);
     catalog::Catalog cat(sm);
@@ -78,14 +78,14 @@ TEST(ProjectionTest, OutputSchemaMatchesProjectionList) {
     auto child = std::make_unique<MockChildExecutorProj>(&ctx, inputSchema);
 
     PhysicalProject plan;
-    plan.projections.push_back(ProjectColumn{
-        std::make_unique<BoundExpr>(BoundColumnRef(1, 1, "b", ColumnType::VARCHAR), ColumnType::VARCHAR),
-        "user_name"
-    });
-    plan.projections.push_back(ProjectColumn{
-        std::make_unique<BoundExpr>(BoundColumnRef(1, 0, "a", ColumnType::INT32), ColumnType::INT32),
-        "user_id"
-    });
+    plan.projections.push_back(
+        ProjectColumn{std::make_unique<BoundExpr>(BoundColumnRef(1, 1, "b", ColumnType::VARCHAR),
+                                                  ColumnType::VARCHAR),
+                      "user_name"});
+    plan.projections.push_back(
+        ProjectColumn{std::make_unique<BoundExpr>(BoundColumnRef(1, 0, "a", ColumnType::INT32),
+                                                  ColumnType::INT32),
+                      "user_id"});
 
     ProjectionExecutor proj(&ctx, plan, std::move(child));
     const auto& outSchema = proj.GetOutputSchema();
@@ -98,22 +98,24 @@ TEST(ProjectionTest, OutputSchemaMatchesProjectionList) {
 }
 
 TEST(ProjectionTest, ComputedExpressionColumn) {
-    Schema inputSchema{{
-        ColumnDef{"price", ColumnType::INT32},
-        ColumnDef{"tax", ColumnType::INT32}
-    }};
+    Schema inputSchema{
+        {ColumnDef{"price", ColumnType::INT32}, ColumnDef{"tax", ColumnType::INT32}}};
 
     storage::StorageManager sm(8);
     catalog::Catalog cat(sm);
     ExecutorContext ctx(sm, cat);
 
     auto child = std::make_unique<MockChildExecutorProj>(&ctx, inputSchema);
-    child->Add(Tuple(Tuple::Serialize(inputSchema, {Value::Int32(100), Value::Int32(15)})), RID{1, 1});
-    child->Add(Tuple(Tuple::Serialize(inputSchema, {Value::Int32(200), Value::Int32(30)})), RID{1, 2});
+    child->Add(Tuple(Tuple::Serialize(inputSchema, {Value::Int32(100), Value::Int32(15)})),
+               RID{1, 1});
+    child->Add(Tuple(Tuple::Serialize(inputSchema, {Value::Int32(200), Value::Int32(30)})),
+               RID{1, 2});
 
     PhysicalProject plan;
-    auto left = std::make_unique<BoundExpr>(BoundColumnRef(1, 0, "price", ColumnType::INT32), ColumnType::INT32);
-    auto right = std::make_unique<BoundExpr>(BoundColumnRef(1, 1, "tax", ColumnType::INT32), ColumnType::INT32);
+    auto left = std::make_unique<BoundExpr>(BoundColumnRef(1, 0, "price", ColumnType::INT32),
+                                            ColumnType::INT32);
+    auto right = std::make_unique<BoundExpr>(BoundColumnRef(1, 1, "tax", ColumnType::INT32),
+                                             ColumnType::INT32);
     auto totalExpr = std::make_unique<BoundExpr>(
         BoundBinaryOp(BinaryOperator::ADD, std::move(left), std::move(right), ColumnType::INT32),
         ColumnType::INT32);

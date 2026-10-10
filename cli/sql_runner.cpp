@@ -19,17 +19,27 @@
 #include <optimizer/logical_plan.h>
 #include <optimizer/physical_plan.h>
 #include <optimizer/planner.h>
+#include <parser/ast/printer.h>
 #include <parser/binder.h>
 #include <parser/parser.h>
 #include <storage/storage_manager.h>
 #include <storage/tuple.h>
 #include <utils/diagnosticsink.h>
 #include <utils/errors.h>
-#include<parser/ast/printer.h>
 
 namespace fs = std::filesystem;
 
 // Pull in only what we need from each sub-namespace to keep code readable.
+using AxolotlDB::binder::Binder;
+using AxolotlDB::catalog::Catalog;
+using AxolotlDB::catalog::TableId;
+using AxolotlDB::executor::AbstractExecutor;
+using AxolotlDB::executor::CreateExecutor;
+using AxolotlDB::executor::ExecutorContext;
+using AxolotlDB::optimizer::Planner;
+using AxolotlDB::optimizer::ToPhysicalPlan;
+using AxolotlDB::parser::Parser;
+using AxolotlDB::parser::ast::ToString;
 using AxolotlDB::storage::ColumnDef;
 using AxolotlDB::storage::ColumnType;
 using AxolotlDB::storage::Schema;
@@ -37,18 +47,8 @@ using AxolotlDB::storage::StorageManager;
 using AxolotlDB::storage::TableHeap;
 using AxolotlDB::storage::Tuple;
 using AxolotlDB::storage::Value;
-using AxolotlDB::catalog::Catalog;
-using AxolotlDB::catalog::TableId;
-using AxolotlDB::executor::ExecutorContext;
-using AxolotlDB::executor::AbstractExecutor;
-using AxolotlDB::executor::CreateExecutor;
-using AxolotlDB::optimizer::Planner;
-using AxolotlDB::optimizer::ToPhysicalPlan;
-using AxolotlDB::parser::Parser;
-using AxolotlDB::binder::Binder;
 using AxolotlDB::utils::DiagnosticSink;
 using AxolotlDB::utils::SyntaxException;
-using AxolotlDB::parser::ast::ToString;
 
 namespace {
 
@@ -98,7 +98,7 @@ struct SqlRunner::Impl {
     }
 
     StorageManager sm;
-    Catalog        catalog;
+    Catalog catalog;
 };
 
 // ─── SqlRunner ───────────────────────────────────────────────────────────────
@@ -123,14 +123,14 @@ QueryResult SqlRunner::Execute(const std::string& sql) {
         // 1. Text → AST
         Parser parser(sql, diag);
         auto statement = parser.Parse();
-        std::cout <<  ToString(statement) << '\n';
+        std::cout << ToString(statement) << '\n';
         // 2. AST → names/types resolved against the catalog
         Binder binder(impl_->catalog);
-        auto bound_ptr = binder.Bind(statement);   // returns unique_ptr<BoundStatement>
+        auto bound_ptr = binder.Bind(statement);  // returns unique_ptr<BoundStatement>
 
         // 3. Bound → logical plan
         Planner planner;
-        auto logical = planner.Plan(*bound_ptr);   // Plan takes const BoundStatement&
+        auto logical = planner.Plan(*bound_ptr);  // Plan takes const BoundStatement&
 
         // 4. Logical → physical plan
         auto physical = ToPhysicalPlan(std::move(logical));
@@ -163,17 +163,14 @@ QueryResult SqlRunner::Execute(const std::string& sql) {
         }
 
     } catch (const SyntaxException& e) {
-        result.error = SqlError{"syntax error", e.what(),
-                                static_cast<int>(e.line),
+        result.error = SqlError{"syntax error", e.what(), static_cast<int>(e.line),
                                 static_cast<int>(e.column)};
     } catch (const std::exception& e) {
         result.error = SqlError{"error", e.what(), 0, 0};
     }
 
     result.elapsed_ms =
-        std::chrono::duration<double, std::milli>(
-            std::chrono::steady_clock::now() - t0)
-            .count();
+        std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
     return result;
 }
 
@@ -189,9 +186,9 @@ std::string SqlRunner::SeedDemo() {
     }
 
     Schema schema({
-        ColumnDef("id",    ColumnType::INT32),
-        ColumnDef("name",  ColumnType::VARCHAR),
-        ColumnDef("age",   ColumnType::INT32),
+        ColumnDef("id", ColumnType::INT32),
+        ColumnDef("name", ColumnType::VARCHAR),
+        ColumnDef("age", ColumnType::INT32),
         ColumnDef("aura", ColumnType::FLOAT64),
     });
 
@@ -199,15 +196,14 @@ std::string SqlRunner::SeedDemo() {
     TableHeap& heap = impl_->catalog.GetTableHeap(table);
 
     struct Row {
-        int32_t     id;
+        int32_t id;
         const char* name;
-        int32_t     age;
-        double      score;
+        int32_t age;
+        double score;
     };
-    const Row rows[] = {
-        {1,  "Youssef Ben Youssef",  23, 9999999}, {2,  "Raed Aroua",  23, 99999}, {3,  "Mouahanned Mejri",  22, 0},
-        {4,  "Mouahamed Hedda",   23, 9999}, {5,  "ALi Backouchi",  23, 999},{6,"Ala Grein",9} 
-    };
+    const Row rows[] = {{1, "Youssef Ben Youssef", 23, 9999999}, {2, "Raed Aroua", 23, 99999},
+                        {3, "Mouahanned Mejri", 22, 0},          {4, "Mouahamed Hedda", 23, 9999},
+                        {5, "ALi Backouchi", 23, 999},           {6, "Ala Grein", 9}};
 
     for (const Row& r : rows) {
         std::vector<Value> vals = {
@@ -236,7 +232,7 @@ std::vector<std::string> SqlRunner::TableNames() {
     // A cleaner approach: call GetTableName(id) for id = 1..N and stop on
     // exception; that avoids needing to know names up front.
     std::vector<std::string> names;
-    for (uint32_t id = 1; ; ++id) {
+    for (uint32_t id = 1;; ++id) {
         try {
             names.push_back(impl_->catalog.GetTableName(id));
         } catch (const std::exception&) {

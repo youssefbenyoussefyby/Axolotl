@@ -93,7 +93,7 @@ ReadPageGuard StorageManager::FetchRead(PageRef ref) {
     IFileIO& io = RequireFile(ref.file_id);
     if (ref.page_no < 0 || ref.page_no >= io.PageCount()) {
         throw AxolotlDB::utils::InvalidPageException("FetchRead: page_no " +
-                                                    std::to_string(ref.page_no) + " out of range");
+                                                     std::to_string(ref.page_no) + " out of range");
     }
 
     auto pin_res = pool_->Pin(ref);
@@ -123,7 +123,7 @@ WritePageGuard StorageManager::FetchWrite(PageRef ref) {
     IFileIO& io = RequireFile(ref.file_id);
     if (ref.page_no < 0 || ref.page_no >= io.PageCount()) {
         throw AxolotlDB::utils::InvalidPageException("FetchWrite: page_no " +
-                                                    std::to_string(ref.page_no) + " out of range");
+                                                     std::to_string(ref.page_no) + " out of range");
     }
 
     auto pin_res = pool_->Pin(ref);
@@ -220,7 +220,7 @@ IFileIO& StorageManager::RequireFile(FileId id) const {
     auto it = files_.find(id);
     if (it == files_.end()) {
         throw AxolotlDB::utils::InvalidPageException("RequireFile: file_id " + std::to_string(id) +
-                                                    " is not open");
+                                                     " is not open");
     }
     return *it->second;
 }

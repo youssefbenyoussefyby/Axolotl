@@ -104,9 +104,9 @@ void Page::EnsureHeaderSane() const {
 
     if (hdr.free_ptr < SlotArrayEnd()) {
         throw AxolotlDB::utils::CorruptPageException(hdr.page_id,
-                                                    "free_ptr " + std::to_string(hdr.free_ptr) +
-                                                        " is below the end of the slot array (" +
-                                                        std::to_string(SlotArrayEnd()) + ")");
+                                                     "free_ptr " + std::to_string(hdr.free_ptr) +
+                                                         " is below the end of the slot array (" +
+                                                         std::to_string(SlotArrayEnd()) + ")");
     }
 }
 

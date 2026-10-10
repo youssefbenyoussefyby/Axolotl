@@ -36,24 +36,18 @@ struct BinderTest : ::testing::Test {
         sm = std::make_unique<storage::StorageManager>(32);
         cat = std::make_unique<catalog::Catalog>(*sm);
 
-        Schema userSchema{{
-            ColumnDef{"id", ColumnType::INT32},
-            ColumnDef{"name", ColumnType::VARCHAR},
-            ColumnDef{"age", ColumnType::INT32}
-        }};
+        Schema userSchema{{ColumnDef{"id", ColumnType::INT32},
+                           ColumnDef{"name", ColumnType::VARCHAR},
+                           ColumnDef{"age", ColumnType::INT32}}};
         cat->CreateTable("users", userSchema);
 
-        Schema orderSchema{{
-            ColumnDef{"order_id", ColumnType::INT32},
-            ColumnDef{"user_id", ColumnType::INT32},
-            ColumnDef{"amount", ColumnType::FLOAT64}
-        }};
+        Schema orderSchema{{ColumnDef{"order_id", ColumnType::INT32},
+                            ColumnDef{"user_id", ColumnType::INT32},
+                            ColumnDef{"amount", ColumnType::FLOAT64}}};
         cat->CreateTable("orders", orderSchema);
 
-        Schema accountSchema{{
-            ColumnDef{"id", ColumnType::INT32},
-            ColumnDef{"balance", ColumnType::FLOAT64}
-        }};
+        Schema accountSchema{
+            {ColumnDef{"id", ColumnType::INT32}, ColumnDef{"balance", ColumnType::FLOAT64}}};
         cat->CreateTable("accounts", accountSchema);
     }
 
@@ -85,13 +79,15 @@ TEST_F(BinderTest, ResolveUnqualifiedColumns) {
     ASSERT_EQ(select.projection.size(), 2u);
 
     EXPECT_EQ(select.projection[0].name, "id");
-    ASSERT_TRUE(std::holds_alternative<parser::ast::BoundColumnRef>(select.projection[0].expr->node));
+    ASSERT_TRUE(
+        std::holds_alternative<parser::ast::BoundColumnRef>(select.projection[0].expr->node));
     const auto& col0 = std::get<parser::ast::BoundColumnRef>(select.projection[0].expr->node);
     EXPECT_EQ(col0.columnIndex, 0u);
     EXPECT_EQ(col0.type, ColumnType::INT32);
 
     EXPECT_EQ(select.projection[1].name, "name");
-    ASSERT_TRUE(std::holds_alternative<parser::ast::BoundColumnRef>(select.projection[1].expr->node));
+    ASSERT_TRUE(
+        std::holds_alternative<parser::ast::BoundColumnRef>(select.projection[1].expr->node));
     const auto& col1 = std::get<parser::ast::BoundColumnRef>(select.projection[1].expr->node);
     EXPECT_EQ(col1.columnIndex, 1u);
     EXPECT_EQ(col1.type, ColumnType::VARCHAR);
@@ -155,38 +151,33 @@ TEST_F(BinderTest, WildcardExpansionJoinTables) {
 }
 
 TEST_F(BinderTest, AmbiguousColumnThrowsError) {
-    EXPECT_THROW({
-        BindSql("SELECT id FROM users JOIN accounts ON users.id = accounts.id;");
-    }, utils::SyntaxException);
+    EXPECT_THROW(
+        { BindSql("SELECT id FROM users JOIN accounts ON users.id = accounts.id;"); },
+        utils::SyntaxException);
     EXPECT_TRUE(sink.hasError());
 }
 
 TEST_F(BinderTest, DisambiguatedColumnSucceeds) {
     EXPECT_NO_THROW({
-        auto bound = BindSql("SELECT users.id, accounts.id FROM users JOIN accounts ON users.id = accounts.id;");
+        auto bound = BindSql(
+            "SELECT users.id, accounts.id FROM users JOIN accounts ON users.id = accounts.id;");
         const auto& select = std::get<parser::ast::BoundSelectStmt>(bound->node);
         EXPECT_EQ(select.projection.size(), 2u);
     });
 }
 
 TEST_F(BinderTest, UnknownTableThrowsError) {
-    EXPECT_THROW({
-        BindSql("SELECT id FROM nonexistent;");
-    }, utils::SyntaxException);
+    EXPECT_THROW({ BindSql("SELECT id FROM nonexistent;"); }, utils::SyntaxException);
     EXPECT_TRUE(sink.hasError());
 }
 
 TEST_F(BinderTest, UnknownColumnThrowsError) {
-    EXPECT_THROW({
-        BindSql("SELECT unknown_col FROM users;");
-    }, utils::SyntaxException);
+    EXPECT_THROW({ BindSql("SELECT unknown_col FROM users;"); }, utils::SyntaxException);
     EXPECT_TRUE(sink.hasError());
 }
 
 TEST_F(BinderTest, UnknownQualifiedColumnThrowsError) {
-    EXPECT_THROW({
-        BindSql("SELECT users.unknown_col FROM users;");
-    }, utils::SyntaxException);
+    EXPECT_THROW({ BindSql("SELECT users.unknown_col FROM users;"); }, utils::SyntaxException);
     EXPECT_TRUE(sink.hasError());
 }
 
@@ -199,23 +190,25 @@ TEST_F(BinderTest, UsingClauseSuccess) {
 }
 
 TEST_F(BinderTest, UsingClauseColumnNotFoundInRightTable) {
-    EXPECT_THROW({
-        BindSql("SELECT * FROM users JOIN orders USING (name);");
-    }, utils::SyntaxException);
+    EXPECT_THROW(
+        { BindSql("SELECT * FROM users JOIN orders USING (name);"); }, utils::SyntaxException);
     EXPECT_TRUE(sink.hasError());
 }
 
 TEST_F(BinderTest, UsingClauseColumnNotFoundInLeftSide) {
-    EXPECT_THROW({
-        BindSql("SELECT * FROM users JOIN orders USING (order_id);");
-    }, utils::SyntaxException);
+    EXPECT_THROW(
+        { BindSql("SELECT * FROM users JOIN orders USING (order_id);"); }, utils::SyntaxException);
     EXPECT_TRUE(sink.hasError());
 }
 
 TEST_F(BinderTest, UsingClauseAmbiguousOnLeftSide) {
-    EXPECT_THROW({
-        BindSql("SELECT * FROM users JOIN accounts ON users.id = accounts.id JOIN accounts AS a2 USING (id);");
-    }, utils::SyntaxException);
+    EXPECT_THROW(
+        {
+            BindSql(
+                "SELECT * FROM users JOIN accounts ON users.id = accounts.id JOIN accounts AS a2 "
+                "USING (id);");
+        },
+        utils::SyntaxException);
     EXPECT_TRUE(sink.hasError());
 }
 
@@ -230,9 +223,9 @@ TEST_F(BinderTest, NaturalJoinSynthesizesEquality) {
 }
 
 TEST_F(BinderTest, NaturalJoinRejectsOnCondition) {
-    EXPECT_THROW({
-        BindSql("SELECT * FROM users NATURAL JOIN accounts ON users.id = accounts.id;");
-    }, utils::SyntaxException);
+    EXPECT_THROW(
+        { BindSql("SELECT * FROM users NATURAL JOIN accounts ON users.id = accounts.id;"); },
+        utils::SyntaxException);
     EXPECT_TRUE(sink.hasError());
 }
 
@@ -241,23 +234,22 @@ TEST_F(BinderTest, AggregateAllowedInProjection) {
         auto bound = BindSql("SELECT COUNT(id) FROM users;");
         const auto& select = std::get<parser::ast::BoundSelectStmt>(bound->node);
         ASSERT_EQ(select.projection.size(), 1u);
-        ASSERT_TRUE(std::holds_alternative<parser::ast::BoundFunctionCall>(select.projection[0].expr->node));
+        ASSERT_TRUE(std::holds_alternative<parser::ast::BoundFunctionCall>(
+            select.projection[0].expr->node));
         const auto& fn = std::get<parser::ast::BoundFunctionCall>(select.projection[0].expr->node);
         EXPECT_TRUE(fn.isAggregate);
     });
 }
 
 TEST_F(BinderTest, AggregateRejectedInWhereClause) {
-    EXPECT_THROW({
-        BindSql("SELECT id FROM users WHERE COUNT(id) > 0;");
-    }, utils::SyntaxException);
+    EXPECT_THROW({ BindSql("SELECT id FROM users WHERE COUNT(id) > 0;"); }, utils::SyntaxException);
     EXPECT_TRUE(sink.hasError());
 }
 
 TEST_F(BinderTest, AggregateRejectedInJoinOnCondition) {
-    EXPECT_THROW({
-        BindSql("SELECT users.id FROM users JOIN accounts ON COUNT(users.id) = accounts.id;");
-    }, utils::SyntaxException);
+    EXPECT_THROW(
+        { BindSql("SELECT users.id FROM users JOIN accounts ON COUNT(users.id) = accounts.id;"); },
+        utils::SyntaxException);
     EXPECT_TRUE(sink.hasError());
 }
 
@@ -279,16 +271,16 @@ TEST_F(BinderTest, InsertWithoutColumnsExpandsAll) {
 }
 
 TEST_F(BinderTest, InsertUnknownColumnThrows) {
-    EXPECT_THROW({
-        BindSql("INSERT INTO users (id, missing_col) VALUES (1, 'fail');");
-    }, utils::SyntaxException);
+    EXPECT_THROW(
+        { BindSql("INSERT INTO users (id, missing_col) VALUES (1, 'fail');"); },
+        utils::SyntaxException);
     EXPECT_TRUE(sink.hasError());
 }
 
 TEST_F(BinderTest, InsertArityMismatchThrows) {
-    EXPECT_THROW({
-        BindSql("INSERT INTO users (id, name, age) VALUES (1, 'Alice');");
-    }, utils::SyntaxException);
+    EXPECT_THROW(
+        { BindSql("INSERT INTO users (id, name, age) VALUES (1, 'Alice');"); },
+        utils::SyntaxException);
     EXPECT_TRUE(sink.hasError());
 }
 
@@ -304,9 +296,8 @@ TEST_F(BinderTest, UpdateStatementBinding) {
 }
 
 TEST_F(BinderTest, UpdateUnknownColumnThrows) {
-    EXPECT_THROW({
-        BindSql("UPDATE users SET bad_col = 100 WHERE id = 1;");
-    }, utils::SyntaxException);
+    EXPECT_THROW(
+        { BindSql("UPDATE users SET bad_col = 100 WHERE id = 1;"); }, utils::SyntaxException);
     EXPECT_TRUE(sink.hasError());
 }
 
@@ -319,14 +310,13 @@ TEST_F(BinderTest, DeleteStatementBinding) {
 }
 
 TEST_F(BinderTest, DeleteUnknownTableThrows) {
-    EXPECT_THROW({
-        BindSql("DELETE FROM missing_table WHERE id = 1;");
-    }, utils::SyntaxException);
+    EXPECT_THROW({ BindSql("DELETE FROM missing_table WHERE id = 1;"); }, utils::SyntaxException);
     EXPECT_TRUE(sink.hasError());
 }
 
 TEST_F(BinderTest, CreateTableBinding) {
-    auto bound = BindSql("CREATE TABLE items (id INT32 NOT NULL, title VARCHAR, score FLOAT32, emb VECTOR(64));");
+    auto bound = BindSql(
+        "CREATE TABLE items (id INT32 NOT NULL, title VARCHAR, score FLOAT32, emb VECTOR(64));");
     ASSERT_TRUE(std::holds_alternative<parser::ast::BoundCreateTableStmt>(bound->node));
     const auto& create = std::get<parser::ast::BoundCreateTableStmt>(bound->node);
     EXPECT_EQ(create.tableName, "items");
@@ -340,9 +330,7 @@ TEST_F(BinderTest, CreateTableBinding) {
 }
 
 TEST_F(BinderTest, CreateDuplicateTableThrows) {
-    EXPECT_THROW({
-        BindSql("CREATE TABLE users (id INT32);");
-    }, utils::SyntaxException);
+    EXPECT_THROW({ BindSql("CREATE TABLE users (id INT32);"); }, utils::SyntaxException);
     EXPECT_TRUE(sink.hasError());
 }
 
@@ -355,9 +343,7 @@ TEST_F(BinderTest, DropTableBinding) {
 }
 
 TEST_F(BinderTest, DropUnknownTableThrows) {
-    EXPECT_THROW({
-        BindSql("DROP TABLE missing_table;");
-    }, utils::SyntaxException);
+    EXPECT_THROW({ BindSql("DROP TABLE missing_table;"); }, utils::SyntaxException);
     EXPECT_TRUE(sink.hasError());
 }
 

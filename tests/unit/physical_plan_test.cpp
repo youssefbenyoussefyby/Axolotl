@@ -25,7 +25,8 @@ TEST(PhysicalPlanTest, EveryLogicalNodeMapsToAPhysicalNode) {
     }
     {
         auto filter = std::make_unique<LogicalFilter>(nullptr);
-        filter->children.push_back(std::make_unique<LogicalScan>(1, "tbl", std::nullopt, dummySchema));
+        filter->children.push_back(
+            std::make_unique<LogicalScan>(1, "tbl", std::nullopt, dummySchema));
         auto phys = ToPhysicalPlan(std::move(filter));
         EXPECT_EQ(phys->Type(), PhysicalNodeType::Filter);
         ASSERT_EQ(phys->children.size(), 1);
@@ -33,7 +34,8 @@ TEST(PhysicalPlanTest, EveryLogicalNodeMapsToAPhysicalNode) {
     }
     {
         auto proj = std::make_unique<LogicalProject>(std::vector<ProjectColumn>{});
-        proj->children.push_back(std::make_unique<LogicalScan>(1, "tbl", std::nullopt, dummySchema));
+        proj->children.push_back(
+            std::make_unique<LogicalScan>(1, "tbl", std::nullopt, dummySchema));
         auto phys = ToPhysicalPlan(std::move(proj));
         EXPECT_EQ(phys->Type(), PhysicalNodeType::Project);
     }
@@ -53,13 +55,15 @@ TEST(PhysicalPlanTest, EveryLogicalNodeMapsToAPhysicalNode) {
     }
     {
         auto sort = std::make_unique<LogicalSort>(std::vector<SortKey>{});
-        sort->children.push_back(std::make_unique<LogicalScan>(1, "tbl", std::nullopt, dummySchema));
+        sort->children.push_back(
+            std::make_unique<LogicalScan>(1, "tbl", std::nullopt, dummySchema));
         auto phys = ToPhysicalPlan(std::move(sort));
         EXPECT_EQ(phys->Type(), PhysicalNodeType::Sort);
     }
     {
         auto limit = std::make_unique<LogicalLimit>(nullptr, nullptr);
-        limit->children.push_back(std::make_unique<LogicalScan>(1, "tbl", std::nullopt, dummySchema));
+        limit->children.push_back(
+            std::make_unique<LogicalScan>(1, "tbl", std::nullopt, dummySchema));
         auto phys = ToPhysicalPlan(std::move(limit));
         EXPECT_EQ(phys->Type(), PhysicalNodeType::Limit);
     }
@@ -74,7 +78,8 @@ TEST(PhysicalPlanTest, EveryLogicalNodeMapsToAPhysicalNode) {
         auto update = std::make_unique<LogicalUpdate>();
         update->tableId = 1;
         update->tableName = "tbl";
-        update->children.push_back(std::make_unique<LogicalScan>(1, "tbl", std::nullopt, dummySchema));
+        update->children.push_back(
+            std::make_unique<LogicalScan>(1, "tbl", std::nullopt, dummySchema));
         auto phys = ToPhysicalPlan(std::move(update));
         EXPECT_EQ(phys->Type(), PhysicalNodeType::Update);
     }
@@ -105,11 +110,14 @@ TEST(PhysicalPlanTest, EveryLogicalNodeMapsToAPhysicalNode) {
 TEST(PhysicalPlanTest, EquiJoinSelectsHashJoin) {
     Schema dummySchema{{ColumnDef{"id", ColumnType::INT32}}};
 
-    auto leftCol = std::make_unique<BoundExpr>(BoundColumnRef(1, 0, "id", ColumnType::INT32), ColumnType::INT32);
-    auto rightCol = std::make_unique<BoundExpr>(BoundColumnRef(2, 0, "id", ColumnType::INT32), ColumnType::INT32);
-    auto eqCond = std::make_unique<BoundExpr>(
-        BoundBinaryOp(BinaryOperator::EQUAL, std::move(leftCol), std::move(rightCol), ColumnType::BOOLEAN),
-        ColumnType::BOOLEAN);
+    auto leftCol = std::make_unique<BoundExpr>(BoundColumnRef(1, 0, "id", ColumnType::INT32),
+                                               ColumnType::INT32);
+    auto rightCol = std::make_unique<BoundExpr>(BoundColumnRef(2, 0, "id", ColumnType::INT32),
+                                                ColumnType::INT32);
+    auto eqCond =
+        std::make_unique<BoundExpr>(BoundBinaryOp(BinaryOperator::EQUAL, std::move(leftCol),
+                                                  std::move(rightCol), ColumnType::BOOLEAN),
+                                    ColumnType::BOOLEAN);
 
     auto equiJoin = std::make_unique<LogicalNestedLoopJoin>(JoinType::INNER, std::move(eqCond));
     equiJoin->children.push_back(std::make_unique<LogicalScan>(1, "t1", std::nullopt, dummySchema));
@@ -118,15 +126,20 @@ TEST(PhysicalPlanTest, EquiJoinSelectsHashJoin) {
     auto physHash = ToPhysicalPlan(std::move(equiJoin));
     EXPECT_EQ(physHash->Type(), PhysicalNodeType::HashJoin);
 
-    auto leftCol2 = std::make_unique<BoundExpr>(BoundColumnRef(1, 0, "id", ColumnType::INT32), ColumnType::INT32);
-    auto rightCol2 = std::make_unique<BoundExpr>(BoundColumnRef(2, 0, "id", ColumnType::INT32), ColumnType::INT32);
-    auto ltCond = std::make_unique<BoundExpr>(
-        BoundBinaryOp(BinaryOperator::LESS, std::move(leftCol2), std::move(rightCol2), ColumnType::BOOLEAN),
-        ColumnType::BOOLEAN);
+    auto leftCol2 = std::make_unique<BoundExpr>(BoundColumnRef(1, 0, "id", ColumnType::INT32),
+                                                ColumnType::INT32);
+    auto rightCol2 = std::make_unique<BoundExpr>(BoundColumnRef(2, 0, "id", ColumnType::INT32),
+                                                 ColumnType::INT32);
+    auto ltCond =
+        std::make_unique<BoundExpr>(BoundBinaryOp(BinaryOperator::LESS, std::move(leftCol2),
+                                                  std::move(rightCol2), ColumnType::BOOLEAN),
+                                    ColumnType::BOOLEAN);
 
     auto nonEquiJoin = std::make_unique<LogicalNestedLoopJoin>(JoinType::INNER, std::move(ltCond));
-    nonEquiJoin->children.push_back(std::make_unique<LogicalScan>(1, "t1", std::nullopt, dummySchema));
-    nonEquiJoin->children.push_back(std::make_unique<LogicalScan>(2, "t2", std::nullopt, dummySchema));
+    nonEquiJoin->children.push_back(
+        std::make_unique<LogicalScan>(1, "t1", std::nullopt, dummySchema));
+    nonEquiJoin->children.push_back(
+        std::make_unique<LogicalScan>(2, "t2", std::nullopt, dummySchema));
 
     auto physNL = ToPhysicalPlan(std::move(nonEquiJoin));
     EXPECT_EQ(physNL->Type(), PhysicalNodeType::NestedLoopJoin);
