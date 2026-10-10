@@ -65,8 +65,8 @@ RUN useradd --create-home --shell /bin/bash axolotl \
     && mkdir -p /var/lib/axolotldb \
     && chown axolotl:axolotl /var/lib/axolotldb
 
-COPY --from=builder /src/build/axolotldb-server /usr/local/bin/axolotldb-server
-COPY --from=builder /src/build/axolotldb-cli    /usr/local/bin/axolotldb-cli
+COPY --from=builder /src/build/AxolotlDB-server /usr/local/bin/axolotldb-server
+COPY --from=builder /src/build/AxolotlDB-cli    /usr/local/bin/axolotldb-cli
 
 USER axolotl
 WORKDIR /var/lib/axolotldb
