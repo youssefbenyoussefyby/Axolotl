@@ -1,0 +1,122 @@
+{
+  "version": 1,
+  "note": "status 'available' = the CLI will run it. keywords are matched as token sequences outside string literals and comments; a feature with no keywords is documentation only. Flip a feature to 'available' when its phase task lands.",
+  "features": [
+    {
+      "id": "select", "title": "SELECT ... FROM <table>", "status": "available",
+      "phase": "P4", "task": "4.2", "keywords": ["SELECT"],
+      "example": "SELECT id, name FROM users;"
+    },
+    {
+      "id": "select.star", "title": "SELECT * expands to the schema", "status": "available",
+      "phase": "P4", "task": "4.2", "keywords": [],
+      "example": "SELECT * FROM users;"
+    },
+    {
+      "id": "select.where", "title": "WHERE with AND / OR / comparisons", "status": "available",
+      "phase": "P4", "task": "4.2", "keywords": ["WHERE"],
+      "example": "SELECT name FROM users WHERE age > 30 AND score >= 7.5;"
+    },
+    {
+      "id": "select.computed", "title": "Computed columns", "status": "available",
+      "phase": "P4", "task": "4.2", "keywords": [],
+      "example": "SELECT id, score * 2 FROM users;"
+    },
+    {
+      "id": "select.alias", "title": "Table alias and qualified columns", "status": "available",
+      "phase": "P4", "task": "4.2", "keywords": [],
+      "example": "SELECT u.id, u.name FROM users u WHERE u.age < 30;"
+    },
+
+    {
+      "id": "insert", "title": "INSERT INTO ... VALUES", "status": "planned",
+      "phase": "P4", "task": "4.3", "keywords": ["INSERT"],
+      "example": "INSERT INTO users (id, name) VALUES (13, 'Zied');",
+      "note": "use :seed for demo data until then"
+    },
+    {
+      "id": "update", "title": "UPDATE ... SET ... WHERE", "status": "planned",
+      "phase": "P4", "task": "4.3", "keywords": ["UPDATE"],
+      "example": "UPDATE users SET name = 'x' WHERE id = 1;"
+    },
+    {
+      "id": "delete", "title": "DELETE FROM ... WHERE", "status": "planned",
+      "phase": "P4", "task": "4.3", "keywords": ["DELETE"],
+      "example": "DELETE FROM users WHERE age > 55;"
+    },
+    {
+      "id": "create.table", "title": "CREATE TABLE", "status": "planned",
+      "phase": "P4", "task": "4.3", "keywords": ["CREATE TABLE"],
+      "example": "CREATE TABLE t (id INT32 PRIMARY KEY, name VARCHAR(64));",
+      "note": "parses and binds; needs a DDL handler over Catalog::CreateTable, not in P4's operator list"
+    },
+    {
+      "id": "drop.table", "title": "DROP TABLE", "status": "planned",
+      "phase": "P4", "task": "4.3", "keywords": ["DROP TABLE"],
+      "example": "DROP TABLE t;",
+      "note": "same DDL handler as CREATE TABLE"
+    },
+    {
+      "id": "select.join", "title": "JOIN ... ON", "status": "planned",
+      "phase": "P4", "task": "4.4", "keywords": ["JOIN"],
+      "example": "SELECT a.id FROM a JOIN b ON a.id = b.a_id;"
+    },
+    {
+      "id": "select.group_by", "title": "GROUP BY", "status": "planned",
+      "phase": "P4", "task": "4.5", "keywords": ["GROUP BY"],
+      "example": "SELECT age, COUNT(*) FROM users GROUP BY age;"
+    },
+    {
+      "id": "select.aggregates", "title": "COUNT / SUM / AVG / MIN / MAX", "status": "planned",
+      "phase": "P4", "task": "4.5",
+      "keywords": ["COUNT (", "SUM (", "AVG (", "MIN (", "MAX ("],
+      "example": "SELECT COUNT(*) FROM users;"
+    },
+    {
+      "id": "select.having", "title": "HAVING", "status": "planned",
+      "phase": "P4", "task": "4.5", "keywords": ["HAVING"],
+      "example": "SELECT age FROM users GROUP BY age HAVING COUNT(*) > 1;"
+    },
+    {
+      "id": "select.order_by", "title": "ORDER BY", "status": "planned",
+      "phase": "P4", "task": "4.5", "keywords": ["ORDER BY"],
+      "example": "SELECT name FROM users ORDER BY score DESC;"
+    },
+    {
+      "id": "select.limit", "title": "LIMIT", "status": "planned",
+      "phase": "P4", "task": "4.5", "keywords": ["LIMIT"],
+      "example": "SELECT name FROM users LIMIT 5;"
+    },
+    {
+      "id": "txn", "title": "BEGIN / COMMIT / ROLLBACK", "status": "planned",
+      "phase": "P5", "task": "5.8", "keywords": ["BEGIN", "COMMIT", "ROLLBACK"],
+      "example": "BEGIN; ... COMMIT;"
+    },
+    {
+      "id": "create.index", "title": "CREATE INDEX", "status": "planned",
+      "phase": "P6", "task": "6.11", "keywords": ["CREATE INDEX"],
+      "example": "CREATE INDEX idx_age ON users (age);"
+    },
+    {
+      "id": "drop.index", "title": "DROP INDEX", "status": "planned",
+      "phase": "P6", "task": "6.11", "keywords": ["DROP INDEX"],
+      "example": "DROP INDEX idx_age;"
+    },
+    {
+      "id": "vector.knn", "title": "k-nearest-neighbour search", "status": "planned",
+      "phase": "P7", "task": "7.4", "keywords": [],
+      "example": "(syntax not chosen yet: ORDER BY <distance> LIMIT k, or an explicit function)",
+      "note": "P7 item 7.4 says to pick one and write it down"
+    },
+    {
+      "id": "analyze", "title": "ANALYZE", "status": "planned",
+      "phase": "P8", "task": "8.2", "keywords": ["ANALYZE"],
+      "example": "ANALYZE users;"
+    },
+    {
+      "id": "explain", "title": "EXPLAIN", "status": "planned",
+      "phase": "P8", "task": "8.6", "keywords": ["EXPLAIN"],
+      "example": "EXPLAIN SELECT * FROM users WHERE id = 1;"
+    }
+  ]
+}

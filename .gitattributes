@@ -25,3 +25,5 @@ LICENSE text eol=lf
 *.dummy binary
 *.png   binary
 *.jpg   binary
+*.py   text eol=lf
+*.cff  text eol=lf

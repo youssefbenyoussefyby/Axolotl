@@ -49,7 +49,10 @@ build_*.txt
 !THIRD_PARTY_NOTICES.md
 !CONTRIBUTING.md
 !CODE_OF_CONDUCT.md
+!SECURITY.md
 !docs/**/*.md
+!experiments/**/*.md
+!.github/**/*.md
 
 # Local sanitizer build tree
 build-asan/
@@ -61,6 +64,10 @@ build-clean/
 *.json
 *.dummy
 coverage.info
+
+# Data the project ships: CLI metadata and committed experiment results.
+!cli/data/*.json
+!experiments/results/**/*.json
 
 # Scratch scripts and helpers (kept local, not shipped)
 scripts/
