@@ -1,0 +1,326 @@
+name: AxolotlDB CI
+
+on:
+  pull_request:
+    branches: [ main, develop, Axolot ]
+  push:
+    branches: [ main, develop, Axolot ]
+  workflow_dispatch:
+
+# A new push to the same branch cancels the run still in flight.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Read-only token by default; jobs that need more ask for it explicitly.
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Linux build + test matrix
+  # ---------------------------------------------------------------------------
+  build-linux:
+    name: Linux ${{ matrix.os }} / ${{ matrix.compiler }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+        compiler: [gcc, clang]
+        include:
+          - compiler: gcc
+            cc: gcc
+            cxx: g++
+          - compiler: clang
+            cc: clang
+            cxx: clang++
+
+    env:
+      CC: ${{ matrix.cc }}
+      CXX: ${{ matrix.cxx }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends cmake ninja-build
+          if [ "${{ matrix.compiler }}" = "clang" ]; then
+            sudo apt-get install -y --no-install-recommends clang
+          fi
+
+      # Cache the FetchContent clones (asio, spdlog, googletest, json, eigen,
+      # CLI11, yaml-cpp). Keyed on the file that declares them.
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: build/_deps
+          key: deps-${{ matrix.os }}-${{ matrix.compiler }}-${{ hashFiles('CMakeLists.txt') }}
+          restore-keys: |
+            deps-${{ matrix.os }}-${{ matrix.compiler }}-
+
+      - name: Configure
+        run: |
+          cmake -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DENABLE_TESTING=ON
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Unit tests
+        run: ctest --test-dir build -L unit --output-on-failure --parallel 2 --no-tests=error
+
+      - name: Integration tests
+        run: ctest --test-dir build -L integration --output-on-failure --no-tests=error
+
+      # The benchmarks are built by default (ENABLE_BENCHMARKS=ON). Run each one
+      # once so a crash or a non-zero exit is caught; the timings are discarded.
+      - name: Smoke-run benchmarks
+        working-directory: ${{ runner.temp }}
+        run: |
+          for b in allocator_bench allocate_page_bench; do
+            echo "::group::$b"
+            timeout 120s "$GITHUB_WORKSPACE/build/$b"
+            echo "::endgroup::"
+          done
+
+  # ---------------------------------------------------------------------------
+  # Windows / MSVC -- the primary development platform.
+  # Catches Windows-only breakage such as <windows.h> macro collisions.
+  # ---------------------------------------------------------------------------
+  build-windows:
+    name: Windows / MSVC
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: build/_deps
+          key: deps-windows-${{ hashFiles('CMakeLists.txt') }}
+          restore-keys: |
+            deps-windows-
+
+      - name: Configure
+        run: cmake -B build -DENABLE_TESTING=ON
+
+      - name: Build
+        run: cmake --build build --config Release --parallel
+
+      - name: Test
+        run: ctest --test-dir build -C Release --output-on-failure --no-tests=error
+
+  # ---------------------------------------------------------------------------
+  # AddressSanitizer + UndefinedBehaviorSanitizer.
+  # Replaces the old Valgrind job: far faster, and it catches the out-of-bounds
+  # reads and lifetime bugs that matter most in the storage layer.
+  # ---------------------------------------------------------------------------
+  sanitizers:
+    name: Sanitizers (ASan + UBSan)
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends cmake ninja-build
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: build-asan/_deps
+          key: deps-asan-${{ hashFiles('CMakeLists.txt') }}
+          restore-keys: |
+            deps-asan-
+
+      - name: Configure
+        run: |
+          cmake -B build-asan -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DENABLE_TESTING=ON \
+            -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -g"
+
+      - name: Build
+        run: cmake --build build-asan --parallel
+
+      - name: Test under sanitizers
+        env:
+          ASAN_OPTIONS: detect_leaks=1
+          UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+        run: ctest --test-dir build-asan --output-on-failure --no-tests=error
+
+  # ---------------------------------------------------------------------------
+  # Coverage -- must be a Debug build; -O3 makes line coverage meaningless.
+  # ---------------------------------------------------------------------------
+  coverage:
+    name: Coverage
+    # 24.04 for lcov 2.x: the mismatch/negative/unused/empty categories passed to
+    # --ignore-errors below do not exist in 22.04's lcov 1.15, which rejects them.
+    runs-on: ubuntu-24.04
+    env:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends cmake ninja-build lcov
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: build-cov/_deps
+          key: deps-cov-${{ hashFiles('CMakeLists.txt') }}
+          restore-keys: |
+            deps-cov-
+
+      - name: Configure
+        run: |
+          cmake -B build-cov -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DENABLE_TESTING=ON \
+            -DENABLE_COVERAGE=ON
+
+      - name: Build
+        run: cmake --build build-cov --parallel
+
+      - name: Test
+        run: ctest --test-dir build-cov --output-on-failure --no-tests=error
+
+      - name: Collect coverage
+        run: |
+          lcov --capture --directory build-cov --output-file coverage.info \
+               --ignore-errors mismatch,gcov,source,negative
+          # Keep only this project's own sources.
+          lcov --extract coverage.info "${PWD}/src/*" "${PWD}/include/*" \
+               --output-file coverage.info --ignore-errors unused,empty
+          lcov --list coverage.info
+
+      # Skipped when the secret is absent (forks, or before Codecov is set up).
+      - name: Upload to Codecov
+        if: env.CODECOV_TOKEN != ''
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.info
+          fail_ci_if_error: false
+          token: ${{ env.CODECOV_TOKEN }}
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.info
+
+  # ---------------------------------------------------------------------------
+  # Static analysis and formatting.
+  #
+  # Made blocking at the end of P2 (docs/phases/P2.md §2.9).
+  # ---------------------------------------------------------------------------
+  code-quality:
+    name: Code Quality
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends cmake ninja-build clang-tidy
+          # Pinned: clang-format output differs between major versions, so CI and
+          # contributors must run the same one (see CONTRIBUTING.md).
+          pipx install clang-format==18.1.8
+          # pipx's bin dir is not always ~/.local/bin (GitHub runners set
+          # PIPX_BIN_DIR=/opt/pipx_bin), so ask pipx where it put the shim.
+          pipx_bin="$(pipx environment --value PIPX_BIN_DIR)"
+          echo "$pipx_bin" >> "$GITHUB_PATH"
+          "$pipx_bin/clang-format" --version
+
+      # cli/data/phases.json is generated from the checklists in docs/phases/.
+      - name: Check CLI roadmap data is up to date
+        run: python3 tools/gen_phases.py --check
+
+      - name: Check formatting
+        run: |
+          git ls-files -z -- 'src/*' 'include/*' 'cli/*' 'server/*' 'tests/*' 'benchmarks/*' \
+            | grep -zE '\.(cpp|h|hpp)$' \
+            | xargs -0 -r clang-format --dry-run --Werror
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: build-tidy/_deps
+          key: deps-tidy-${{ hashFiles('CMakeLists.txt') }}
+          restore-keys: |
+            deps-tidy-
+
+      - name: Configure for compile_commands.json
+        run: |
+          cmake -B build-tidy -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+            -DENABLE_TESTING=OFF
+
+      # Advisory until the existing findings are cleared (see the note at the top
+      # of .clang-tidy). Findings still show up in the log and as annotations.
+      - name: Run clang-tidy
+        continue-on-error: true
+        run: |
+          # Only the files that actually have code in them; the roadmap stubs
+          # are empty and produce nothing useful.
+          mapfile -t FILES < <(find src -name '*.cpp' -size +1c)
+          if [ ${#FILES[@]} -eq 0 ]; then
+            echo "No non-empty sources to analyse."
+            exit 0
+          fi
+          printf '%s\n' "${FILES[@]}"
+          run-clang-tidy -p build-tidy "${FILES[@]}"
+
+  # ---------------------------------------------------------------------------
+  # CD -- verify the container image builds and the binaries inside it run.
+  # No registry push is configured; add a login + push step when you have one.
+  # ---------------------------------------------------------------------------
+  docker:
+    name: Docker image
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      actions: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: axolotldb:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke-test the image
+        # timeout(1) so a future blocking server cannot sit on the runner forever.
+        # Today's stub prints a line and exits 0; timeout then also exits 0.
+        run: timeout 20s docker run --rm axolotldb:ci axolotldb-server

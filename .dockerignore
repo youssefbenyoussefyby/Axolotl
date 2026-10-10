@@ -1,0 +1,21 @@
+# Build trees
+build/
+build-*/
+out/
+cmake-build-*/
+
+# VCS and editor state
+.git/
+.github/
+.vscode/
+.idea/
+
+# Local notes (kept out of the image; only README.md is tracked anyway)
+docs/
+*.md
+!README.md
+
+# Local database files and logs
+*.db
+*.db-wal
+*.log

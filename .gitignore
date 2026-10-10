@@ -1,0 +1,73 @@
+# Created by https://www.toptal.com/developers/gitignore/api/cmake
+# Edit at https://www.toptal.com/developers/gitignore?templates=cmake
+
+### CMake ###
+CMakeLists.txt.user
+CMakeCache.txt
+CMakeFiles
+CMakeScripts
+Testing
+Makefile
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+_deps
+build
+
+### CMake Patch ###
+CMakeUserPresets.json
+
+# External projects
+*-prefix/
+
+# End of https://www.toptal.com/developers/gitignore/api/cmake
+### AxolotDB — project rules ###
+
+# Build artifacts and logs
+build/
+build_*.txt
+*.log
+*.pdb
+*.obj
+*.ilk
+/.claude/
+/.kilo/
+# Local database files produced by tests / the CLI
+*.db
+*.db-wal
+
+# Competitive Programming Helper (VS Code extension)
+.cph/
+
+# Notes and working documents stay local; the architecture record ships.
+# Scratch notes and progress reports outside docs/ are still ignored.
+# `!docs/**/*.md` rather than `!docs/*.md`: the latter is only one directory
+# deep and leaves docs/phases/*.md ignored, which is N11 again.
+*.md
+!README.md
+!THIRD_PARTY_NOTICES.md
+!CONTRIBUTING.md
+!CODE_OF_CONDUCT.md
+!SECURITY.md
+!docs/**/*.md
+!experiments/**/*.md
+!.github/**/*.md
+
+# Local sanitizer build tree
+build-asan/
+build-cov/
+build-tidy/
+build-clean/
+
+# Test result / coverage files
+*.json
+*.dummy
+coverage.info
+
+# Data the project ships: CLI metadata and committed experiment results.
+!cli/data/*.json
+!experiments/results/**/*.json
+
+# Scratch scripts and helpers (kept local, not shipped)
+scripts/

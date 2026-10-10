@@ -1,0 +1,38 @@
+﻿# Compose v2. The top-level `version:` key is obsolete and intentionally absent.
+
+services:
+  # Development shell: full toolchain, source bind-mounted so edits on the host
+  # are visible inside the container.
+  #   docker compose run --rm dev
+  dev:
+    build:
+      context: .
+      target: dev
+    image: AxolotlDB:dev
+    volumes:
+      - .:/workspace
+      # Keep the container's build tree out of the host bind mount so a Linux
+      # build and a Windows build do not fight over the same directory.
+      - AxolotlDB-build:/workspace/build
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
+    command: /bin/bash
+
+  # Production-shaped image: just the server binary.
+  #   docker compose up server
+  server:
+    build:
+      context: .
+      target: runtime
+    image: AxolotlDB:latest
+    ports:
+      - "5432:5432"
+    volumes:
+      - AxolotlDB-data:/var/lib/AxolotlDB
+    command: ["AxolotlDB-server"]
+    restart: unless-stopped
+
+volumes:
+  AxolotlDB-build:
+  AxolotlDB-data:

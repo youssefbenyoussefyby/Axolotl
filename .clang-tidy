@@ -1,0 +1,26 @@
+# Checks are broad so the editor surfaces everything useful.
+#
+# WarningsAsErrors is deliberately empty: the current sources predate this
+# config and would fail wholesale. The CI "Code Quality" job runs clang-tidy in
+# advisory mode. Once the findings are cleared, promote a subset here (start
+# with 'bugprone-*') and drop continue-on-error from the workflow.
+Checks: '-*,
+  bugprone-*,
+  performance-*,
+  modernize-*,
+  readability-*,
+  -modernize-use-trailing-return-type,
+  -readability-magic-numbers,
+  -readability-identifier-length'
+
+WarningsAsErrors: ''
+
+# Only this project's own headers, listed explicitly by module directory.
+# A looser pattern such as '.*/include/.*' would also pull in every
+# FetchContent dependency under build/_deps -- spdlog, yaml-cpp, gtest and
+# nlohmann all live in a directory called "include" too.
+# (ExcludeHeaderFilterRegex would be cleaner but needs clang-tidy 19+;
+#  ubuntu-22.04 ships 14.)
+HeaderFilterRegex: '.*/include/(catalog|executor|index|network|optimizer|parser|storage|utils|vector)/.*\.h$'
+
+FormatStyle: file
