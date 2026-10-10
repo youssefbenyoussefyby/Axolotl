@@ -30,8 +30,8 @@
 | **P0** | Hardening — N1–N4, N10–N14; green CI baseline | **DONE** — 152/152, 0 warnings | S | [phases/P0.md](phases/P0.md) |
 | **P1** | Storage core — Page, FileManager, BufferPool, Tuple, VectorHeap | **DONE** | — | [phases/P1.md](phases/P1.md) |
 | **P2** | Storage services — StorageManager, PageGuard, TableHeap, Catalog, WAL contract | **DONE** — 217/217, gate green | L | [phases/P2.md](phases/P2.md) |
-| **P3** | SQL front end — lexer, parser, binder, logical plan | **NEXT** | M | [phases/P3.md](phases/P3.md) |
-| **P4** | Execution engine — Volcano operators, rule-based rewrites | Not started | XL | [phases/P4.md](phases/P4.md) |
+| **P3** | SQL front end — lexer, parser, binder, logical plan | **DONE** | M | [phases/P3.md](phases/P3.md) |
+| **P4** | Execution engine — Volcano operators, rule-based rewrites | **IN PROGRESS** — 4.2 milestone reached (SeqScan + Filter + Projection end-to-end); 4.3 DML next | XL | [phases/P4.md](phases/P4.md) |
 | **P5** | WAL + recovery + page latching | Not started | L | [phases/P5.md](phases/P5.md) |
 | **P6** | Relational indexing — B+Tree, hash index, IndexScan | Not started | L | [phases/P6.md](phases/P6.md) |
 | **P7** | Vector indexing / ANN — brute force, then HNSW | Not started | XL | [phases/P7.md](phases/P7.md) |

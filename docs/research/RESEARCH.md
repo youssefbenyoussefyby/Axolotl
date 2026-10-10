@@ -18,7 +18,8 @@ AxolotDB is a relational + vector database written from scratch in C++20 (namesp
 | P5–P10 | WAL/recovery, B+Tree, HNSW, cost-based optimizer, server, embeddings | Not started |
 
 Notes:
-- `ROADMAP.md` §1.1 still shows P3 as NEXT and P4 as not started. It needs a status update.
+- `ROADMAP.md` §1.1 was updated on 2026-10-09 to show P3 done and P4 in progress.
+- Experiments follow the protocol in [`experiments/README.md`](../../experiments/README.md) (pre-registration, pinned seeds, results committed under the producing SHA). The first one, [E001](../../experiments/E001-semantic-filter-ordering/README.md), is defined but not run.
 - The CLI has a dev mode (`:dev`) with SQL execution, a roadmap view, demo seeding and a `queries.json` gate that blocks SQL features not yet built.
 - Design invariants relevant to research:
   - Logical and physical plans are separate, so an optimizer can be swapped in without touching executors.
@@ -75,20 +76,66 @@ All experiments should be reproducible, with fixed seeds, committed datasets or 
 - **Timeline:** no hard deadlines, but the literature search should start now.
 - **Sequencing:** most directions need P7 (vector search) and P8 (optimizer), so there is a long engineering path before the first real experiment. A cheaper early experiment on top of P4 would keep the research moving. Semantic filters evaluated as a plain operator are the most promising candidate.
 
-## 7. Literature search plan
+## 7. Related work (starting list)
 
-Start with these areas and record each source with a one-line relevance note. Verify every citation before using it in a paper or CV.
+Every entry below is **unverified**: it was compiled from memory as a starting point.
+Before citing any of them, confirm the title, authors, venue and year against the
+publisher's page, then change its tag to *verified*. Each entry has a one-line note on
+why it matters here.
 
-- Cost-based optimization foundations: Selinger et al. (SIGMOD 1979), already in the P8 reading list.
-- Learned and model-guided query optimizers.
-- LLM-powered or semantic operators in query engines.
-- Vector search and hybrid filter + ANN queries: the HNSW paper and the pgvector design.
-- Data summarization, lossy compression and retention policies in databases.
+### 7.1 Expensive and semantic predicates (direction 3.1)
+
+| Reference | Status | Relevance |
+|---|---|---|
+| Hellerstein & Stonebraker, "Predicate Migration: Optimizing Queries with Expensive Predicates", SIGMOD 1993 | unverified | Classic rank ordering for expensive predicates; the rule tested in E001 H2. |
+| Hellerstein, "Optimization Techniques for Queries with Expensive Methods", ACM TODS 1998 | unverified | Extends predicate migration to joins; cost model for user-defined functions. |
+| Patel et al., "LOTUS: Enabling Semantic Queries with LLMs Over Tables of Unstructured and Structured Data" (semantic operators), arXiv 2024 | unverified | Defines semantic filter/join/top-k operators and optimizes them with cheap proxy models; closest prior system. |
+| Liu et al., "Palimpzest: Optimizing AI-Powered Analytics with Declarative Query Processing", CIDR 2025 | unverified | Cost/quality optimizer for LLM-backed operators; baseline for cost modelling. |
+| Shankar et al., "DocETL: Agentic Query Rewriting and Evaluation for Complex Document Processing", arXiv 2024 | unverified | LLM-driven rewrites of document-processing pipelines. |
+| Kang et al., "NoScope: Optimizing Neural Network Queries over Video at Scale", VLDB 2017 | unverified | Cheap specialised models in front of an expensive model, which is the cascade pattern for semantic filters. |
+| Lu et al., "Accelerating Machine Learning Inference with Probabilistic Predicates", SIGMOD 2018 | unverified | Cheap pre-filters with accuracy guarantees ahead of ML predicates. |
+
+### 7.2 Learned and model-assisted optimization (direction 3.2)
+
+| Reference | Status | Relevance |
+|---|---|---|
+| Selinger et al., "Access Path Selection in a Relational Database Management System", SIGMOD 1979 | unverified | The DP baseline built in P8. |
+| Leis et al., "How Good Are Query Optimizers, Really?", VLDB 2015 | unverified | Join Order Benchmark; shows cardinality error dominates plan quality. |
+| Marcus et al., "Neo: A Learned Query Optimizer", VLDB 2019 | unverified | End-to-end learned optimizer; the "replace the optimizer" design point. |
+| Marcus et al., "Bao: Making Learned Query Optimization Practical", SIGMOD 2021 | unverified | Steers a classical optimizer with hints instead of replacing it, which matches this project's "classical fallback" stance. |
+| Kipf et al., "Learned Cardinalities: Estimating Correlated Joins with Deep Learning", CIDR 2019 | unverified | Learned cardinality estimation; an alternative insertion point for a model. |
+| Akioyamen et al., "The Unreasonable Effectiveness of LLMs for Query Optimization", arXiv 2024 | unverified | Direct use of LLM embeddings/outputs for plan selection; nearest work to 3.2. |
+
+### 7.3 Vector search and hybrid queries (P7 and 3.1)
+
+| Reference | Status | Relevance |
+|---|---|---|
+| Malkov & Yashunin, "Efficient and Robust Approximate Nearest Neighbor Search Using Hierarchical Navigable Small World Graphs", IEEE TPAMI 2018 | unverified | The HNSW index P7 implements. |
+| Jégou, Douze & Schmid, "Product Quantization for Nearest Neighbor Search", IEEE TPAMI 2011 | unverified | Compression for vectors, relevant to both P7 and 3.3. |
+| Aumüller, Bernhardsson & Faithfull, "ANN-Benchmarks", Information Systems 2020 | unverified | Standard recall/QPS methodology to copy for P7 evaluation. |
+| Wang et al., "Milvus: A Purpose-Built Vector Data Management System", SIGMOD 2021 | unverified | System design reference for filtered vector queries. |
+| Gollapudi et al., "Filtered-DiskANN: Graph Algorithms for Approximate Nearest Neighbor Search with Filters", WWW 2023 | unverified | Combining attribute filters with graph ANN, which is where semantic and relational predicates meet. |
+
+### 7.4 Forgetting and semantic compression (direction 3.3)
+
+| Reference | Status | Relevance |
+|---|---|---|
+| Kersten & Sidirourgos, "A Database System with Amnesia", CIDR 2017 | unverified | Proposes a DBMS that deliberately forgets data under a storage budget; closest prior framing of 3.3. |
+| Babu, Garofalakis & Rastogi, "SPARTAN: A Model-Based Semantic Compression System for Massive Data Tables", SIGMOD 2001 | unverified | Lossy, error-bounded semantic compression of tables; template for making the loss explicit. |
+| Jagadish, Madar & Ng, "Semantic Compression and Pattern Extraction with Fascicles", VLDB 1999 | unverified | Earlier semantic compression with per-attribute tolerances. |
+| Park et al., "Generative Agents: Interactive Simulacra of Human Behavior", UIST 2023 | unverified | Memory retrieval scored by recency, importance and relevance; a candidate definition of row "value". |
+| Packer et al., "MemGPT: Towards LLMs as Operating Systems", arXiv 2023 | unverified | Tiered memory with summarisation/eviction for LLM agents; the workload side of 3.3. |
+
+### 7.5 Still to search
+
+- Knowledge-graph storage and querying inside a relational engine (direction 3.4).
+- Hybrid relational + vector benchmarks with filters, to pick E002's dataset.
+- Cost models for remote model calls (latency, price, rate limits) in query processing.
 
 ## 8. Next steps
 
 1. Finish P4 (joins, aggregation, DML) while keeping the public repo clean. The repo goes public at the P4.2 milestone.
-2. Update `ROADMAP.md` §1.1 to match reality.
-3. Do the literature search and fill in section 7 with real, verified references.
-4. Pick one small first experiment that needs only P4, and write its hypothesis, dataset and metric.
+2. ~~Update `ROADMAP.md` §1.1 to match reality.~~ Done 2026-10-09.
+3. Verify the starting list in section 7 entry by entry, then extend it (7.5).
+4. ~~Pick one small first experiment that needs only P4.~~ Defined as [E001](../../experiments/E001-semantic-filter-ordering/README.md); it is ready to run once P4.3 INSERT and a `SemanticFilter` operator exist.
 5. Find one reader (professor or researcher) for this plan.
