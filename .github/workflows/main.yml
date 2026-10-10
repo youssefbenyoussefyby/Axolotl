@@ -245,8 +245,11 @@ jobs:
           # Pinned: clang-format output differs between major versions, so CI and
           # contributors must run the same one (see CONTRIBUTING.md).
           pipx install clang-format==18.1.8
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-          "$HOME/.local/bin/clang-format" --version
+          # pipx's bin dir is not always ~/.local/bin (GitHub runners set
+          # PIPX_BIN_DIR=/opt/pipx_bin), so ask pipx where it put the shim.
+          pipx_bin="$(pipx environment --value PIPX_BIN_DIR)"
+          echo "$pipx_bin" >> "$GITHUB_PATH"
+          "$pipx_bin/clang-format" --version
 
       # cli/data/phases.json is generated from the checklists in docs/phases/.
       - name: Check CLI roadmap data is up to date
