@@ -471,13 +471,14 @@ parser::ast::BoundInsertStatement Binder::BindInsert(const parser::ast::InsertSt
         }
     }
 
-
     for (uint32_t i = 0; i < static_cast<uint32_t>(schema.columns.size()); i++) {
         const auto& col = schema.columns[i];
         const bool listed = std::find(bound.columnIndices.begin(), bound.columnIndices.end(), i) !=
                             bound.columnIndices.end();
         if (!listed && !col.nullable) {
-            Error("Column '" + col.name + "' of table '" + name +"' is NOT NULL and has no value in the INSERT",stmt.table.line, stmt.table.column, col.name);
+            Error("Column '" + col.name + "' of table '" + name +
+                      "' is NOT NULL and has no value in the INSERT",
+                  stmt.table.line, stmt.table.column, col.name);
         }
     }
 
@@ -486,7 +487,9 @@ parser::ast::BoundInsertStatement Binder::BindInsert(const parser::ast::InsertSt
 
     for (const auto& row : stmt.valueRows) {
         if (row.size() != bound.targetColumns.size()) {
-            Error("INSERT arity mismatch: expected " + std::to_string(bound.targetColumns.size()) +" values, got " + std::to_string(row.size()),stmt.table.line, stmt.table.column, name);
+            Error("INSERT arity mismatch: expected " + std::to_string(bound.targetColumns.size()) +
+                      " values, got " + std::to_string(row.size()),
+                  stmt.table.line, stmt.table.column, name);
         }
         std::vector<parser::ast::BoundExprPtr> boundRow;
         for (std::size_t k = 0; k < row.size(); ++k) {
@@ -540,9 +543,10 @@ void Binder::CoerceInsertValue(parser::ast::BoundExpr& value, const storage::Col
 
     if (std::holds_alternative<std::nullptr_t>(lit->value)) {
         if (!target.nullable) {
-            Error("Column '" + target.name + "' is NOT NULL; cannot insert NULL", value.line,value.column, "NULL");
+            Error("Column '" + target.name + "' is NOT NULL; cannot insert NULL", value.line,
+                  value.column, "NULL");
         }
-        retype(target.type);  
+        retype(target.type);
         return;
     }
 

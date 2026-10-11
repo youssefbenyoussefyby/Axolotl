@@ -146,7 +146,8 @@ TEST_F(DeleteTest, ReportsAffectedRowCount) {
 }
 
 TEST_F(DeleteTest, DeletedRowsDisappearFromScan) {
-    ASSERT_EQ(ExecuteDML("INSERT INTO users VALUES (1, 'ann', 20), (2, 'bob', 30), (3, 'cat', 40);"), 3);
+    ASSERT_EQ(
+        ExecuteDML("INSERT INTO users VALUES (1, 'ann', 20), (2, 'bob', 30), (3, 'cat', 40);"), 3);
 
     ASSERT_EQ(ExecuteDML("DELETE FROM users WHERE id = 2;"), 1);
 
@@ -187,7 +188,8 @@ TEST_F(DeleteTest, DeleteOnEmptyTableEmitsZero) {
 }
 
 TEST_F(DeleteTest, CompoundWherePredicate) {
-    ASSERT_EQ(ExecuteDML("INSERT INTO users VALUES (1, 'ann', 20), (2, 'bob', 20), (3, 'bob', 30);"), 3);
+    ASSERT_EQ(
+        ExecuteDML("INSERT INTO users VALUES (1, 'ann', 20), (2, 'bob', 20), (3, 'bob', 30);"), 3);
 
     ASSERT_EQ(ExecuteDML("DELETE FROM users WHERE name = 'bob' AND age = 20;"), 1);
 

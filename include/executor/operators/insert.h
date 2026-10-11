@@ -1,8 +1,7 @@
 #pragma once
 #include <executor/executor.h>
-#include <storage/table_heap.h>
 #include <executor/expression.h>
-
+#include <storage/table_heap.h>
 
 namespace AxolotlDB::executor {
 
@@ -21,7 +20,6 @@ class InsertExecutor : public AbstractExecutor {
     storage::TableHeap* heap_ = nullptr;
     bool done_ = false;
     storage::Schema table_schema_;
-
 };
 
 }  // namespace AxolotlDB::executor
