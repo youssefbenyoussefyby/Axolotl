@@ -12,8 +12,8 @@
     {
       "id": "P0",
       "name": "Hardening",
-      "state": "in_progress",
-      "note": "46/48 checklist items ticked",
+      "state": "done",
+      "note": "48/48 checklist items ticked",
       "tasks": [
         {
           "id": "0.1",
@@ -23,8 +23,7 @@
         {
           "id": "0.2",
           "title": "N2: drop std::format, get a green baseline",
-          "status": "in_progress",
-          "progress": 67
+          "status": "done"
         },
         {
           "id": "0.3",
@@ -59,22 +58,20 @@
         {
           "id": "gate",
           "title": "Gate",
-          "status": "in_progress",
-          "progress": 75
+          "status": "done"
         }
       ]
     },
     {
       "id": "P1",
       "name": "Storage core",
-      "state": "in_progress",
-      "note": "2/4 checklist items ticked",
+      "state": "done",
+      "note": "4/4 checklist items ticked",
       "tasks": [
         {
           "id": "statu",
           "title": "Status",
-          "status": "in_progress",
-          "progress": 50
+          "status": "done"
         }
       ]
     },
@@ -139,8 +136,8 @@
     {
       "id": "P3",
       "name": "SQL front end",
-      "state": "in_progress",
-      "note": "31/44 checklist items ticked",
+      "state": "done",
+      "note": "44/44 checklist items ticked",
       "tasks": [
         {
           "id": "3.1",
@@ -170,12 +167,12 @@
         {
           "id": "3.6",
           "title": "Binder",
-          "status": "todo"
+          "status": "done"
         },
         {
           "id": "3.7",
           "title": "Planner",
-          "status": "todo"
+          "status": "done"
         },
         {
           "id": "3.8",
@@ -185,7 +182,7 @@
         {
           "id": "gate",
           "title": "Gate",
-          "status": "todo"
+          "status": "done"
         }
       ]
     },
