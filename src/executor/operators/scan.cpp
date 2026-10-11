@@ -1,4 +1,4 @@
-﻿#include <executor/operators/scan.h>
+#include <executor/operators/scan.h>
 
 namespace AxolotlDB::executor {
 
@@ -6,13 +6,19 @@ SeqScanExecutor::SeqScanExecutor(ExecutorContext* ctx, const optimizer::Physical
     : AbstractExecutor(ctx), plan_(plan) {
     if (plan_.schema.ColumnCount() > 0) {
         output_schema_ = plan_.schema;
-    } else {
+    } else if (!plan_.outputSchema.empty()) {
         std::vector<storage::ColumnDef> cols;
         cols.reserve(plan_.outputSchema.size());
         for (const auto& col : plan_.outputSchema) {
             cols.emplace_back(col.name, col.type);
         }
         output_schema_ = storage::Schema(std::move(cols));
+    } else if (context_) {
+        if (!plan_.tableName.empty()) {
+            output_schema_ = context_->GetCatalog().GetSchema(plan_.tableName);
+        } else if (plan_.tableId != 0) {
+            output_schema_ = context_->GetCatalog().GetSchema(plan_.tableId);
+        }
     }
 }
 
@@ -20,6 +26,13 @@ void SeqScanExecutor::Init() {
     if (!context_) {
         heap_ = nullptr;
         return;
+    }
+    if (output_schema_.ColumnCount() == 0) {
+        if (!plan_.tableName.empty()) {
+            output_schema_ = context_->GetCatalog().GetSchema(plan_.tableName);
+        } else if (plan_.tableId != 0) {
+            output_schema_ = context_->GetCatalog().GetSchema(plan_.tableId);
+        }
     }
     if (!plan_.tableName.empty()) {
         heap_ = &context_->GetCatalog().GetTableHeap(plan_.tableName);

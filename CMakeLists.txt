@@ -244,7 +244,8 @@ if(LIB_SOURCES)
     src/parser/binder.cpp
     include/utils/log/transaction.h
     include/optimizer/physical_plan.h
-    include/executor/operators/insert.h)
+    include/executor/operators/insert.h
+    include/executor/operators/delete.h)
   target_include_directories(AxolotlDB
     PUBLIC
       $<BUILD_INTERFACE:${INCLUDE_DIR}>
