@@ -354,3 +354,166 @@ TEST_F(BinderTest, BinaryOperatorTypeInference) {
     EXPECT_EQ(select.projection[0].expr->type, ColumnType::INT32);
     EXPECT_EQ(select.projection[1].expr->type, ColumnType::BOOLEAN);
 }
+
+// ============================================================================
+// INSERT value checks: NOT NULL, literal coercion, type families, VECTOR.
+//
+// `users` comes from the fixture. Its ColumnDefs use the two-argument
+// constructor, which makes every column NOT NULL (nullable = false).
+// ============================================================================
+namespace {
+
+const parser::ast::BoundInsertStmt& AsInsert(const parser::ast::BoundStatement& s) {
+    return std::get<parser::ast::BoundInsertStmt>(s.node);
+}
+
+const parser::ast::BoundLiteral& LiteralAt(const parser::ast::BoundInsertStmt& ins, size_t row,
+                                           size_t k) {
+    return std::get<parser::ast::BoundLiteral>(ins.valueRows[row][k]->node);
+}
+
+}  // namespace
+
+TEST_F(BinderTest, InsertOmittingNotNullColumnThrowsNamingTheColumn) {
+    try {
+        (void)BindSql("INSERT INTO users (id, name) VALUES (1, 'a');");
+        FAIL() << "expected SemanticException";
+    } catch (const utils::SemanticException& e) {
+        EXPECT_NE(std::string(e.what()).find("'age'"), std::string::npos) << e.what();
+        EXPECT_EQ(e.GetToken(), "age");
+    }
+    EXPECT_TRUE(sink.hasError());
+}
+
+TEST_F(BinderTest, InsertOmittingNullableColumnIsAllowed) {
+    cat->CreateTable("notes", Schema{{ColumnDef{"id", ColumnType::INT32, false},
+                                      ColumnDef{"body", ColumnType::VARCHAR, true}}});
+    auto bound = BindSql("INSERT INTO notes (id) VALUES (1);");
+    const auto& ins = AsInsert(*bound);
+    ASSERT_EQ(ins.columnIndices.size(), 1u);
+    EXPECT_EQ(ins.columnIndices[0], 0u);
+}
+
+TEST_F(BinderTest, InsertNullLiteralIntoNotNullColumnThrowsAtTheNull) {
+    try {
+        (void)BindSql("INSERT INTO users VALUES (NULL, 'a', 1);");
+        FAIL() << "expected SemanticException";
+    } catch (const utils::SemanticException& e) {
+        EXPECT_EQ(e.GetToken(), "NULL");
+        EXPECT_EQ(e.GetLine(), 1u);
+    }
+    EXPECT_TRUE(sink.hasError());
+}
+
+TEST_F(BinderTest, InsertNullLiteralIntoNullableColumnTakesTheColumnType) {
+    cat->CreateTable("notes", Schema{{ColumnDef{"id", ColumnType::INT32, false},
+                                      ColumnDef{"body", ColumnType::VARCHAR, true}}});
+    auto bound = BindSql("INSERT INTO notes VALUES (1, NULL);");
+    const auto& ins = AsInsert(*bound);
+    const auto& lit = LiteralAt(ins, 0, 1);
+    EXPECT_TRUE(std::holds_alternative<std::nullptr_t>(lit.value));
+    EXPECT_EQ(lit.type, ColumnType::VARCHAR);
+    EXPECT_EQ(ins.valueRows[0][1]->type, ColumnType::VARCHAR);
+}
+
+// The binder types every integer literal INT64. Without retyping, an INT32
+// column would receive Value::Int64 and Tuple::Serialize would throw.
+TEST_F(BinderTest, InsertIntegerLiteralIntoInt32ColumnIsRetypedToInt32) {
+    auto bound = BindSql("INSERT INTO users VALUES (7, 'a', 30);");
+    const auto& ins = AsInsert(*bound);
+    EXPECT_EQ(LiteralAt(ins, 0, 0).type, ColumnType::INT32);
+    EXPECT_EQ(ins.valueRows[0][0]->type, ColumnType::INT32);
+    EXPECT_EQ(LiteralAt(ins, 0, 2).type, ColumnType::INT32);
+    EXPECT_EQ(std::get<int64_t>(LiteralAt(ins, 0, 0).value), 7);
+}
+
+TEST_F(BinderTest, InsertIntegerLiteralIntoInt64ColumnStaysInt64) {
+    cat->CreateTable("big", Schema{{ColumnDef{"v", ColumnType::INT64}}});
+    auto bound = BindSql("INSERT INTO big VALUES (5000000000);");
+    const auto& lit = LiteralAt(AsInsert(*bound), 0, 0);
+    EXPECT_EQ(lit.type, ColumnType::INT64);
+    EXPECT_EQ(std::get<int64_t>(lit.value), 5000000000LL);
+}
+
+TEST_F(BinderTest, InsertIntegerOutOfInt32RangeThrows) {
+    EXPECT_THROW((void)BindSql("INSERT INTO users VALUES (3000000000, 'a', 1);"),
+                 utils::SemanticException);
+    EXPECT_TRUE(sink.hasError());
+}
+
+TEST_F(BinderTest, InsertNegativeLiteralIsFoldedAndRetyped) {
+    auto bound = BindSql("INSERT INTO users VALUES (-5, 'a', 1);");
+    const auto& lit = LiteralAt(AsInsert(*bound), 0, 0);  // throws if still a NEGATE node
+    EXPECT_EQ(lit.type, ColumnType::INT32);
+    EXPECT_EQ(std::get<int64_t>(lit.value), -5);
+}
+
+TEST_F(BinderTest, InsertNegativeOutOfInt32RangeThrows) {
+    EXPECT_THROW((void)BindSql("INSERT INTO users VALUES (-3000000000, 'a', 1);"),
+                 utils::SemanticException);
+}
+
+TEST_F(BinderTest, InsertIntegerIntoFloat64ColumnBecomesDouble) {
+    auto bound = BindSql("INSERT INTO accounts VALUES (1, 100);");
+    const auto& lit = LiteralAt(AsInsert(*bound), 0, 1);
+    EXPECT_EQ(lit.type, ColumnType::FLOAT64);
+    ASSERT_TRUE(std::holds_alternative<double>(lit.value));
+    EXPECT_DOUBLE_EQ(std::get<double>(lit.value), 100.0);
+}
+
+TEST_F(BinderTest, InsertDecimalIntoFloat32ColumnIsRetypedToFloat32) {
+    cat->CreateTable("f", Schema{{ColumnDef{"x", ColumnType::FLOAT32}}});
+    auto bound = BindSql("INSERT INTO f VALUES (1.5);");
+    EXPECT_EQ(LiteralAt(AsInsert(*bound), 0, 0).type, ColumnType::FLOAT32);
+}
+
+TEST_F(BinderTest, InsertDecimalIntoIntColumnThrows) {
+    EXPECT_THROW((void)BindSql("INSERT INTO users VALUES (1.5, 'a', 1);"),
+                 utils::SemanticException);
+}
+
+TEST_F(BinderTest, InsertStringIntoIntColumnThrowsNamingBothTypes) {
+    try {
+        (void)BindSql("INSERT INTO users VALUES ('x', 'a', 1);");
+        FAIL() << "expected SemanticException";
+    } catch (const utils::SemanticException& e) {
+        const std::string msg = e.what();
+        EXPECT_NE(msg.find("INT32"), std::string::npos) << msg;
+        EXPECT_NE(msg.find("string"), std::string::npos) << msg;
+    }
+}
+
+TEST_F(BinderTest, InsertIntegerIntoVarcharColumnThrows) {
+    EXPECT_THROW((void)BindSql("INSERT INTO users VALUES (1, 2, 3);"), utils::SemanticException);
+}
+
+TEST_F(BinderTest, InsertNumericExpressionIsAcceptedUnfolded) {
+    auto bound = BindSql("INSERT INTO users VALUES (1 + 2, 'a', 1);");
+    const auto& ins = AsInsert(*bound);
+    // Width is left to the executor; the binder only checks the type family.
+    EXPECT_TRUE(std::holds_alternative<parser::ast::BoundBinaryOp>(ins.valueRows[0][0]->node));
+}
+
+TEST_F(BinderTest, InsertBooleanExpressionIntoIntColumnThrows) {
+    EXPECT_THROW((void)BindSql("INSERT INTO users VALUES (1 = 1, 'a', 1);"),
+                 utils::SemanticException);
+}
+
+TEST_F(BinderTest, InsertNonNullValueIntoVectorColumnThrows) {
+    cat->CreateTable("docs", Schema{{ColumnDef{"id", ColumnType::INT32},
+                                     ColumnDef{"emb", ColumnType::VECTOR, true, 4u}}});
+    EXPECT_THROW((void)BindSql("INSERT INTO docs VALUES (1, 5);"), utils::SemanticException);
+}
+
+TEST_F(BinderTest, InsertNullIntoNullableVectorColumnIsAllowed) {
+    cat->CreateTable("docs", Schema{{ColumnDef{"id", ColumnType::INT32},
+                                     ColumnDef{"emb", ColumnType::VECTOR, true, 4u}}});
+    auto bound = BindSql("INSERT INTO docs VALUES (1, NULL);");
+    EXPECT_EQ(LiteralAt(AsInsert(*bound), 0, 1).type, ColumnType::VECTOR);
+}
+
+TEST_F(BinderTest, InsertEveryRowIsChecked) {
+    // The first row is fine; the second violates NOT NULL.
+    EXPECT_THROW((void)BindSql("INSERT INTO users VALUES (1, 'a', 1), (2, NULL, 2);"),
+                 utils::SemanticException);
+}

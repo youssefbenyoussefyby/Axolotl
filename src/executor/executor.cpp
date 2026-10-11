@@ -1,5 +1,7 @@
 ﻿#include <executor/executor.h>
+#include <executor/operators/delete.h>
 #include <executor/operators/filter.h>
+#include <executor/operators/insert.h>
 #include <executor/operators/project.h>
 #include <executor/operators/scan.h>
 #include <optimizer/physical_plan.h>
@@ -47,7 +49,8 @@ ExecutorPtr CreateExecutor(const PhysicalNode& plan, ExecutorContext* ctx) {
         }
         case PhysicalNodeType::Insert: {
             ExpectChildren(plan, 0, "Insert");
-            NotImplemented("Insert");
+            return std::make_unique<InsertExecutor>(
+                ctx, static_cast<const optimizer::PhysicalInsert&>(plan));
         }
         case PhysicalNodeType::Filter: {
             ExpectChildren(plan, 1, "Filter");
@@ -89,7 +92,8 @@ ExecutorPtr CreateExecutor(const PhysicalNode& plan, ExecutorContext* ctx) {
             ExpectChildren(plan, 1, "Delete");
             auto child = BuildChild(plan, 0, ctx);
             (void)child;
-            NotImplemented("Delete");
+            return std::make_unique<DeleteExecutor>(
+                ctx, static_cast<const optimizer::PhysicalDelete&>(plan), std::move(child));
         }
         case PhysicalNodeType::NestedLoopJoin: {
             ExpectChildren(plan, 2, "NestedLoopJoin");
