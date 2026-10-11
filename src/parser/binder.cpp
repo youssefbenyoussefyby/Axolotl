@@ -1,6 +1,9 @@
 ﻿#include <parser/binder.h>
 #include <utils/errors.h>
 
+#include <algorithm>
+#include <limits>
+
 namespace AxolotlDB::binder {
 namespace {
 template <typename... Ts>
@@ -468,23 +471,123 @@ parser::ast::BoundInsertStatement Binder::BindInsert(const parser::ast::InsertSt
         }
     }
 
+
+    for (uint32_t i = 0; i < static_cast<uint32_t>(schema.columns.size()); i++) {
+        const auto& col = schema.columns[i];
+        const bool listed = std::find(bound.columnIndices.begin(), bound.columnIndices.end(), i) !=
+                            bound.columnIndices.end();
+        if (!listed && !col.nullable) {
+            Error("Column '" + col.name + "' of table '" + name +"' is NOT NULL and has no value in the INSERT",stmt.table.line, stmt.table.column, col.name);
+        }
+    }
+
     BinderContext ctx;
     ctx.AddTable(id, name, std::nullopt, schema);
 
     for (const auto& row : stmt.valueRows) {
         if (row.size() != bound.targetColumns.size()) {
-            Error("INSERT arity mismatch: expected " + std::to_string(bound.targetColumns.size()) +
-                      " values, got " + std::to_string(row.size()),
-                  stmt.table.line, stmt.table.column, name);
+            Error("INSERT arity mismatch: expected " + std::to_string(bound.targetColumns.size()) +" values, got " + std::to_string(row.size()),stmt.table.line, stmt.table.column, name);
         }
         std::vector<parser::ast::BoundExprPtr> boundRow;
-        for (const auto& val : row) {
-            boundRow.push_back(BindExprInContext(val, ctx, false));
+        for (std::size_t k = 0; k < row.size(); ++k) {
+            auto value = BindExprInContext(row[k], ctx, false);
+            CoerceInsertValue(*value, bound.targetColumns[k]);
+            boundRow.push_back(std::move(value));
         }
         bound.valueRows.push_back(std::move(boundRow));
     }
 
     return bound;
+}
+
+void Binder::CoerceInsertValue(parser::ast::BoundExpr& value, const storage::ColumnDef& target) {
+    using storage::ColumnType;
+    const auto isNumeric = [](ColumnType t) {
+        return t == ColumnType::INT32 || t == ColumnType::INT64 || t == ColumnType::FLOAT32 ||
+               t == ColumnType::FLOAT64;
+    };
+    const auto mismatch = [&](const std::string& got) {
+        Error("Type mismatch: column '" + target.name + "' is " +
+                  storage::ColumnTypeName(target.type) + ", value is " + got,
+              value.line, value.column, target.name);
+    };
+
+    if (auto* neg = std::get_if<parser::ast::BoundUnaryOp>(&value.node);
+        neg != nullptr && neg->uop == parser::ast::UnaryOperator::NEGATE && neg->expr) {
+        if (const auto* inner = std::get_if<parser::ast::BoundLiteral>(&neg->expr->node)) {
+            if (const auto* i = std::get_if<int64_t>(&inner->value)) {
+                value.node = parser::ast::BoundLiteral(inner->type, -*i);
+            } else if (const auto* d = std::get_if<double>(&inner->value)) {
+                value.node = parser::ast::BoundLiteral(inner->type, -*d);
+            }
+        }
+    }
+
+    auto* lit = std::get_if<parser::ast::BoundLiteral>(&value.node);
+    if (lit == nullptr) {
+        const bool compatible =
+            (isNumeric(target.type) && isNumeric(value.type)) || target.type == value.type;
+        if (!compatible) {
+            mismatch(std::string("an expression of type ") + storage::ColumnTypeName(value.type));
+        }
+        return;
+    }
+
+    const auto retype = [&](ColumnType t) {
+        lit->type = t;
+        value.type = t;
+    };
+
+    if (std::holds_alternative<std::nullptr_t>(lit->value)) {
+        if (!target.nullable) {
+            Error("Column '" + target.name + "' is NOT NULL; cannot insert NULL", value.line,value.column, "NULL");
+        }
+        retype(target.type);  
+        return;
+    }
+
+    if (target.type == ColumnType::VECTOR) {
+        Error("Column '" + target.name +
+                  "' is VECTOR; vector values cannot be written in SQL yet (only NULL)",
+              value.line, value.column, target.name);
+    }
+
+    if (const auto* i = std::get_if<int64_t>(&lit->value)) {
+        switch (target.type) {
+            case ColumnType::INT32:
+                if (*i < std::numeric_limits<int32_t>::min() ||
+                    *i > std::numeric_limits<int32_t>::max()) {
+                    Error("Value " + std::to_string(*i) + " is out of range for INT32 column '" +
+                              target.name + "'",
+                          value.line, value.column, std::to_string(*i));
+                }
+                retype(ColumnType::INT32);
+                return;
+            case ColumnType::INT64:
+                retype(ColumnType::INT64);
+                return;
+            case ColumnType::FLOAT32:
+            case ColumnType::FLOAT64:
+                lit->value = static_cast<double>(*i);
+                retype(target.type);
+                return;
+            default:
+                mismatch("an integer");
+        }
+    } else if (std::holds_alternative<double>(lit->value)) {
+        if (target.type != ColumnType::FLOAT32 && target.type != ColumnType::FLOAT64) {
+            mismatch("a decimal number");
+        }
+        retype(target.type);
+    } else if (std::holds_alternative<std::string>(lit->value)) {
+        if (target.type != ColumnType::VARCHAR) {
+            mismatch("a string");
+        }
+    } else if (std::holds_alternative<bool>(lit->value)) {
+        if (target.type != ColumnType::BOOLEAN) {
+            mismatch("a boolean");
+        }
+    }
 }
 
 parser::ast::BoundUpdateStatement Binder::BindUpdate(const parser::ast::UpdateStatement& stmt) {

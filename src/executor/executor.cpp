@@ -3,6 +3,7 @@
 #include <executor/operators/project.h>
 #include <executor/operators/scan.h>
 #include <optimizer/physical_plan.h>
+#include <executor/operators/insert.h>
 
 #include <stdexcept>
 #include <string>
@@ -42,12 +43,11 @@ ExecutorPtr CreateExecutor(const PhysicalNode& plan, ExecutorContext* ctx) {
     switch (plan.Type()) {
         case PhysicalNodeType::SeqScan: {
             ExpectChildren(plan, 0, "SeqScan");
-            return std::make_unique<SeqScanExecutor>(
-                ctx, static_cast<const optimizer::PhysicalSeqScan&>(plan));
+            return std::make_unique<SeqScanExecutor>(ctx, static_cast<const optimizer::PhysicalSeqScan&>(plan));
         }
         case PhysicalNodeType::Insert: {
             ExpectChildren(plan, 0, "Insert");
-            NotImplemented("Insert");
+            return std::make_unique<InsertExecutor>(ctx, static_cast<const optimizer::PhysicalInsert&>(plan));
         }
         case PhysicalNodeType::Filter: {
             ExpectChildren(plan, 1, "Filter");

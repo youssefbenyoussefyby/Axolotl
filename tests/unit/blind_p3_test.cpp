@@ -44,7 +44,7 @@ struct BlindP3Test : public ::testing::Test {
             "users",
             Schema{{ColumnDef{"id", ColumnType::INT32}, ColumnDef{"name", ColumnType::VARCHAR},
                     ColumnDef{"age", ColumnType::INT32}, ColumnDef{"score", ColumnType::FLOAT64},
-                    ColumnDef{"emb", ColumnType::VECTOR, 4}}});
+                    ColumnDef{"emb", ColumnType::VECTOR, /*nullable=*/true, 4u}}});
 
         cat->CreateTable("orders", Schema{{ColumnDef{"order_id", ColumnType::INT32},
                                            ColumnDef{"user_id", ColumnType::INT32},
@@ -641,8 +641,9 @@ TEST_F(BlindP3Test, PlannerDeleteWithoutWhereProducesDeleteOverScan) {
 
 TEST_F(BlindP3Test, PlannerInsertBuildsInsertNodeWithTwoRows) {
     auto plan = Plan(
-        "INSERT INTO users (id, name, age) "
-        "VALUES (1, 'alice', 25), (2, 'bob', 30);");
+        // score is listed because it is NOT NULL; emb is nullable (no vector literal yet).
+        "INSERT INTO users (id, name, age, score) "
+        "VALUES (1, 'alice', 25, 1.5), (2, 'bob', 30, 2.5);");
 
     ASSERT_NE(plan, nullptr);
     EXPECT_EQ(plan->Type(), optimizer::LogicalNodeType::Insert);

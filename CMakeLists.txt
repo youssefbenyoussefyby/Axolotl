@@ -243,7 +243,8 @@ if(LIB_SOURCES)
     include/parser/ast/boundstmt.h
     src/parser/binder.cpp
     include/utils/log/transaction.h
-    include/optimizer/physical_plan.h)
+    include/optimizer/physical_plan.h
+    include/executor/operators/insert.h)
   target_include_directories(AxolotlDB
     PUBLIC
       $<BUILD_INTERFACE:${INCLUDE_DIR}>

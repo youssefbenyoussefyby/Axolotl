@@ -77,6 +77,17 @@ class Binder {
                                                               BinderContext& ctx,
                                                               bool allowAggregate);
 
+    /// Make one INSERT value fit its target column, or fail with a positioned error.
+    ///  - NULL into a NOT NULL column is rejected.
+    ///  - Literals are retyped to the column type (INT64 literal -> INT32 with a range
+    ///    check, integer -> FLOAT32/FLOAT64, FLOAT64 -> FLOAT32), so EvaluateConstant
+    ///    produces exactly the Value that Tuple::Serialize expects. `-<number>` is folded
+    ///    into a literal first.
+    ///  - Non-literal expressions only get a type-family check (numeric / VARCHAR /
+    ///    BOOLEAN); a numeric width difference is left to the executor.
+    ///  - VECTOR columns accept only NULL until the grammar has a vector literal.
+    void CoerceInsertValue(parser::ast::BoundExpr& value, const storage::ColumnDef& target);
+
    public:
     explicit Binder(catalog::Catalog& catalog, utils::DiagnosticSink* sink = nullptr);
 
