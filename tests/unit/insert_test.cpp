@@ -21,6 +21,7 @@
 #include <storage/storage_manager.h>
 #include <storage/tuple.h>
 #include <utils/diagnosticsink.h>
+#include <utils/errors.h>
 
 #include <chrono>
 #include <cstdint>
@@ -28,6 +29,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <variant>
 #include <vector>
 
 using namespace AxolotlDB;
@@ -261,4 +263,116 @@ TEST_F(InsertTest, InsertedRowsSurviveFlushAndReopen) {
     Close();
     Open(/*batch=*/1024);
     EXPECT_EQ(Run("SELECT id FROM users;").size(), 2u);
+}
+
+// ---- type checks inside the executor -------------------------------------------
+//
+// Through SQL, the binder already rejects a string literal for an INT column.
+// These build the physical plan by hand so the executor's own check is what
+// runs: a plan from any other producer (a future INSERT ... SELECT, a
+// rewrite rule, a test) must not be able to store the wrong type.
+
+namespace {
+
+parser::ast::BoundExprPtr Lit(storage::ColumnType t,
+                              std::variant<int64_t, double, std::string, bool, std::nullptr_t> v) {
+    return std::make_unique<parser::ast::BoundExpr>(parser::ast::BoundLiteral(t, std::move(v)), t);
+}
+
+}  // namespace
+
+class InsertTypeCheckTest : public InsertTest {
+   protected:
+    // users(id INT32, name VARCHAR, age INT32), all three listed.
+    std::unique_ptr<optimizer::PhysicalInsert> UsersPlan() {
+        auto p = std::make_unique<optimizer::PhysicalInsert>();
+        p->tableName = "users";
+        p->tableId = cat_->GetTableId("users");
+        p->columnIndices = {0, 1, 2};
+        p->targetColumns = users_.columns;
+        return p;
+    }
+
+    static optimizer::InsertRow Row(parser::ast::BoundExprPtr a, parser::ast::BoundExprPtr b,
+                                    parser::ast::BoundExprPtr c) {
+        optimizer::InsertRow r;
+        r.values.push_back(std::move(a));
+        r.values.push_back(std::move(b));
+        r.values.push_back(std::move(c));
+        return r;
+    }
+
+    void ExpectRejected(optimizer::PhysicalInsert& plan) {
+        auto exec = executor::CreateExecutor(plan, ctx_.get());
+        exec->Init();
+        std::vector<Tuple> batch;
+        std::optional<std::vector<storage::RID>> rids = std::nullopt;
+        EXPECT_THROW((void)exec->Next(&batch, rids), utils::TypeMismatchException);
+        EXPECT_TRUE(Run("SELECT id FROM users;").empty()) << "nothing may be written";
+    }
+};
+
+TEST_F(InsertTypeCheckTest, StringIntoIntColumnIsRejected) {
+    auto plan = UsersPlan();
+    plan->rows.push_back(Row(Lit(ColumnType::VARCHAR, std::string("seven")),
+                             Lit(ColumnType::VARCHAR, std::string("a")),
+                             Lit(ColumnType::INT32, int64_t{1})));
+    ExpectRejected(*plan);
+}
+
+TEST_F(InsertTypeCheckTest, NumberIntoVarcharColumnIsRejected) {
+    auto plan = UsersPlan();
+    plan->rows.push_back(Row(Lit(ColumnType::INT32, int64_t{1}),
+                             Lit(ColumnType::INT64, int64_t{42}),
+                             Lit(ColumnType::INT32, int64_t{1})));
+    ExpectRejected(*plan);
+}
+
+TEST_F(InsertTypeCheckTest, DecimalIntoIntColumnIsRejectedNotTruncated) {
+    auto plan = UsersPlan();
+    plan->rows.push_back(Row(Lit(ColumnType::FLOAT64, 2.9),
+                             Lit(ColumnType::VARCHAR, std::string("a")),
+                             Lit(ColumnType::INT32, int64_t{1})));
+    ExpectRejected(*plan);
+}
+
+TEST_F(InsertTypeCheckTest, BadSecondRowLeavesTheFirstUnwritten) {
+    auto plan = UsersPlan();
+    plan->rows.push_back(Row(Lit(ColumnType::INT32, int64_t{1}),
+                             Lit(ColumnType::VARCHAR, std::string("ok")),
+                             Lit(ColumnType::INT32, int64_t{1})));
+    plan->rows.push_back(Row(Lit(ColumnType::INT32, int64_t{2}), Lit(ColumnType::BOOLEAN, true),
+                             Lit(ColumnType::INT32, int64_t{2})));
+    ExpectRejected(*plan);
+}
+
+// An INT64-typed value (what an unconverted literal or `1 + 2` produces) is
+// narrowed into an INT32 column, with a range check.
+TEST_F(InsertTypeCheckTest, Int64ValueIsNarrowedIntoInt32Column) {
+    auto plan = UsersPlan();
+    plan->rows.push_back(Row(Lit(ColumnType::INT64, int64_t{9}),
+                             Lit(ColumnType::VARCHAR, std::string("n")),
+                             Lit(ColumnType::INT64, int64_t{30})));
+    auto exec = executor::CreateExecutor(*plan, ctx_.get());
+    exec->Init();
+    std::vector<Tuple> batch;
+    std::optional<std::vector<storage::RID>> rids = std::nullopt;
+    ASSERT_TRUE(exec->Next(&batch, rids));
+    auto rows = Run("SELECT id, age FROM users;");
+    ASSERT_EQ(rows.size(), 1u);
+    EXPECT_EQ(rows[0][0].AsInt32(), 9);
+    EXPECT_EQ(rows[0][1].AsInt32(), 30);
+}
+
+TEST_F(InsertTypeCheckTest, Int64OutOfInt32RangeIsRejected) {
+    auto plan = UsersPlan();
+    plan->rows.push_back(Row(Lit(ColumnType::INT64, int64_t{5000000000LL}),
+                             Lit(ColumnType::VARCHAR, std::string("big")),
+                             Lit(ColumnType::INT32, int64_t{1})));
+    auto exec = executor::CreateExecutor(*plan, ctx_.get());
+    exec->Init();
+    std::vector<Tuple> batch;
+    std::optional<std::vector<storage::RID>> rids = std::nullopt;
+    EXPECT_THROW((void)exec->Next(&batch, rids), utils::AxolotException);
+    EXPECT_TRUE(Run("SELECT id FROM users;").empty());
 }

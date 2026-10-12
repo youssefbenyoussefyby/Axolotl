@@ -1,4 +1,5 @@
-﻿#include <executor/operators/insert.h>
+﻿#include <executor/coerce.h>
+#include <executor/operators/insert.h>
 
 namespace AxolotlDB::executor {
 
@@ -31,6 +32,9 @@ const storage::Schema& InsertExecutor::GetOutputSchema() const {
 bool InsertExecutor::Next(std::vector<storage::Tuple>* tupleBatch,
                           std::optional<std::vector<storage::RID>>& ridBatch) {
     tupleBatch->clear();
+    if (ridBatch.has_value()) {
+        ridBatch->clear();  // one count row out, so there are no RIDs to align with it
+    }
 
     if (heap_ == nullptr || done_)
         return false;
@@ -43,21 +47,13 @@ bool InsertExecutor::Next(std::vector<storage::Tuple>* tupleBatch,
             vals.push_back(storage::Value::Null(table_schema_.columns[i].type));
 
         for (size_t i = 0; i < plan_.rows[j].values.size(); i++) {
-            storage::Value val = EvaluateConstant(*plan_.rows[j].values[i]);
-            if (val.IsNull() && !table_schema_.columns[plan_.columnIndices[i]].nullable) {
-                throw utils::AxolotException("Column '" +
-                                             table_schema_.columns[plan_.columnIndices[i]].name +
-                                             "' is NOT NULL");
-            }
-            if (val.Type() > table_schema_.columns[plan_.columnIndices[i]].type) {
-                if (val.Type() == storage::ColumnType::INT64)
-                    vals[plan_.columnIndices[i]] =
-                        storage::Value::Int32(static_cast<int32_t>(val.AsInt64()));
-                if (val.Type() == storage::ColumnType::FLOAT64)
-                    vals[plan_.columnIndices[i]] =
-                        storage::Value::Float64(static_cast<float>(val.AsFloat64()));
-            } else
-                vals[plan_.columnIndices[i]] = val;
+            vals[plan_.columnIndices[i]] = EvaluateConstant(*plan_.rows[j].values[i]);
+        }
+        // Every column, listed or not: converts numeric widths, rejects a
+        // non-numeric value in a numeric column (and the reverse), and rejects
+        // NULL in a NOT NULL column, including one the column list left out.
+        for (size_t c = 0; c < table_schema_.ColumnCount(); c++) {
+            vals[c] = CoerceToColumn(vals[c], table_schema_.columns[c]);
         }
         tuple_rows.push_back(storage::Tuple(storage::Tuple::Serialize(table_schema_, vals)));
     }
@@ -69,8 +65,8 @@ bool InsertExecutor::Next(std::vector<storage::Tuple>* tupleBatch,
             throw utils::ValueTooLargeException("", t.Span().size(), max_payload);
         }
     }
-    for (storage::Tuple t : tuple_rows) {
-        heap_->Insert(t.Span());
+    for (const storage::Tuple& t : tuple_rows) {
+        (void)heap_->Insert(t.Span());
         rows_effected++;
     }
 

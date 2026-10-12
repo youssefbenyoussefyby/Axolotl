@@ -245,7 +245,8 @@ if(LIB_SOURCES)
     include/utils/log/transaction.h
     include/optimizer/physical_plan.h
     include/executor/operators/insert.h
-    include/executor/operators/delete.h)
+    include/executor/operators/delete.h
+    include/executor/operators/update.h)
   target_include_directories(AxolotlDB
     PUBLIC
       $<BUILD_INTERFACE:${INCLUDE_DIR}>

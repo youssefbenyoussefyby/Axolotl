@@ -4,6 +4,7 @@
 #include <executor/operators/insert.h>
 #include <executor/operators/project.h>
 #include <executor/operators/scan.h>
+#include <executor/operators/update.h>
 #include <optimizer/physical_plan.h>
 
 #include <stdexcept>
@@ -85,8 +86,8 @@ ExecutorPtr CreateExecutor(const PhysicalNode& plan, ExecutorContext* ctx) {
         case PhysicalNodeType::Update: {
             ExpectChildren(plan, 1, "Update");
             auto child = BuildChild(plan, 0, ctx);
-            (void)child;
-            NotImplemented("Update");
+            return std::make_unique<UpdateExecutor>(
+                ctx, static_cast<const optimizer::PhysicalUpdate&>(plan), std::move(child));
         }
         case PhysicalNodeType::Delete: {
             ExpectChildren(plan, 1, "Delete");
