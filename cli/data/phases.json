@@ -4,8 +4,8 @@
   "generated_from": "docs/phases/P*.md by tools/gen_phases.py; do not edit by hand",
   "stage": {
     "phase": "P4",
-    "milestone": "4.3",
-    "label": "DML operators",
+    "milestone": "4.4",
+    "label": "Joins, with the physical split intact",
     "state": "in_progress"
   },
   "phases": [
@@ -190,7 +190,7 @@
       "id": "P4",
       "name": "Execution engine",
       "state": "in_progress",
-      "note": "12/29 checklist items ticked",
+      "note": "14/29 checklist items ticked",
       "tasks": [
         {
           "id": "4.1",
@@ -205,8 +205,7 @@
         {
           "id": "4.3",
           "title": "DML operators",
-          "status": "in_progress",
-          "progress": 50
+          "status": "done"
         },
         {
           "id": "4.4",
