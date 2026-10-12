@@ -29,10 +29,9 @@
     },
 
     {
-      "id": "insert", "title": "INSERT INTO ... VALUES", "status": "planned",
+      "id": "insert", "title": "INSERT INTO ... VALUES", "status": "available",
       "phase": "P4", "task": "4.3", "keywords": ["INSERT"],
-      "example": "INSERT INTO users (id, name) VALUES (13, 'Zied');",
-      "note": "use :seed for demo data until then"
+      "example": "INSERT INTO users (id, name) VALUES (13, 'Zied');"
     },
     {
       "id": "update", "title": "UPDATE ... SET ... WHERE", "status": "planned",
@@ -40,7 +39,7 @@
       "example": "UPDATE users SET name = 'x' WHERE id = 1;"
     },
     {
-      "id": "delete", "title": "DELETE FROM ... WHERE", "status": "planned",
+      "id": "delete", "title": "DELETE FROM ... WHERE", "status": "available",
       "phase": "P4", "task": "4.3", "keywords": ["DELETE"],
       "example": "DELETE FROM users WHERE age > 55;"
     },

@@ -203,7 +203,7 @@ std::string SqlRunner::SeedDemo() {
     };
     const Row rows[] = {{1, "Youssef Ben Youssef", 23, 9999999}, {2, "Raed Aroua", 23, 99999},
                         {3, "Mouahanned Mejri", 22, 0},          {4, "Mouahamed Hedda", 23, 9999},
-                        {5, "ALi Backouchi", 23, 999},           {6, "Ala Grein", 9}};
+                        {5, "ALi Backouchi", 23, 999},           {6, "Ala Grein", 23, 9}};
 
     for (const Row& r : rows) {
         std::vector<Value> vals = {
