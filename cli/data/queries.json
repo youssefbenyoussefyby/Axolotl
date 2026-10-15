@@ -34,7 +34,7 @@
       "example": "INSERT INTO users (id, name) VALUES (13, 'Zied');"
     },
     {
-      "id": "update", "title": "UPDATE ... SET ... WHERE", "status": "planned",
+      "id": "update", "title": "UPDATE ... SET ... WHERE", "status": "available",
       "phase": "P4", "task": "4.3", "keywords": ["UPDATE"],
       "example": "UPDATE users SET name = 'x' WHERE id = 1;"
     },
