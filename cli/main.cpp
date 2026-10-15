@@ -1232,8 +1232,8 @@ int main(int argc, char** argv) {
                         std::cout << color::GREEN << "  ✔ " << runner->SeedDemo() << color::RESET
                                   << '\n';
                         std::cout << color::GRAY << "    try: " << color::CYAN
-                                  << "SELECT name, score FROM users WHERE age > 30;" << color::RESET
-                                  << '\n';
+                                  << "SELECT name, aura FROM king_ya_bay WHERE age > 22;"
+                                  << color::RESET << '\n';
                     } catch (const std::exception& ex) {
                         std::cout << color::RED << "  ✖ seed failed: " << ex.what() << color::RESET
                                   << '\n';
