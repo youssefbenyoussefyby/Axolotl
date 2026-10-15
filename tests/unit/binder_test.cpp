@@ -517,3 +517,28 @@ TEST_F(BinderTest, InsertEveryRowIsChecked) {
     EXPECT_THROW((void)BindSql("INSERT INTO users VALUES (1, 'a', 1), (2, NULL, 2);"),
                  utils::SemanticException);
 }
+
+// ---- CREATE TABLE checks -------------------------------------------------------
+
+TEST_F(BinderTest, CreateTableDuplicateColumnThrows) {
+    try {
+        (void)BindSql("CREATE TABLE t (id INT32, id INT64);");
+        FAIL() << "expected SemanticException";
+    } catch (const utils::SemanticException& e) {
+        EXPECT_EQ(e.GetToken(), "id");
+    }
+    EXPECT_TRUE(sink.hasError());
+}
+
+TEST_F(BinderTest, CreateTableVectorWithoutDimensionThrows) {
+    EXPECT_THROW((void)BindSql("CREATE TABLE docs (id INT32, emb VECTOR);"),
+                 utils::SemanticException);
+}
+
+TEST_F(BinderTest, CreateTableVectorWithDimensionBinds) {
+    auto bound = BindSql("CREATE TABLE docs (id INT32, emb VECTOR(8));");
+    const auto& create = std::get<parser::ast::BoundCreateTableStmt>(bound->node);
+    ASSERT_EQ(create.schema.ColumnCount(), 2u);
+    EXPECT_EQ(create.schema.columns[1].type, ColumnType::VECTOR);
+    EXPECT_EQ(create.schema.columns[1].dimension, 8u);
+}

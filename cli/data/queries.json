@@ -44,16 +44,16 @@
       "example": "DELETE FROM users WHERE age > 55;"
     },
     {
-      "id": "create.table", "title": "CREATE TABLE", "status": "planned",
+      "id": "create.table", "title": "CREATE TABLE", "status": "available",
       "phase": "P4", "task": "4.3", "keywords": ["CREATE TABLE"],
       "example": "CREATE TABLE t (id INT32 PRIMARY KEY, name VARCHAR(64));",
-      "note": "parses and binds; needs a DDL handler over Catalog::CreateTable, not in P4's operator list"
+      "note": "CreateTableExecutor over Catalog::CreateTable"
     },
     {
-      "id": "drop.table", "title": "DROP TABLE", "status": "planned",
+      "id": "drop.table", "title": "DROP TABLE", "status": "available",
       "phase": "P4", "task": "4.3", "keywords": ["DROP TABLE"],
       "example": "DROP TABLE t;",
-      "note": "same DDL handler as CREATE TABLE"
+      "note": "DropTableExecutor over Catalog::DropTable"
     },
     {
       "id": "select.join", "title": "JOIN ... ON", "status": "planned",
