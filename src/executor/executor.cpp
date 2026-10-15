@@ -1,5 +1,7 @@
 ﻿#include <executor/executor.h>
+#include <executor/operators/create_table.h>
 #include <executor/operators/delete.h>
+#include <executor/operators/drop_table.h>
 #include <executor/operators/filter.h>
 #include <executor/operators/insert.h>
 #include <executor/operators/project.h>
@@ -112,10 +114,16 @@ ExecutorPtr CreateExecutor(const PhysicalNode& plan, ExecutorContext* ctx) {
             (void)probe;
             NotImplemented("HashJoin");
         }
-        case PhysicalNodeType::CreateTable:
-            NotImplemented("CreateTable");
-        case PhysicalNodeType::DropTable:
-            NotImplemented("DropTable");
+        case PhysicalNodeType::CreateTable: {
+            ExpectChildren(plan, 0, "CreateTable");
+            return std::make_unique<CreateTableExecutor>(
+                ctx, static_cast<const optimizer::PhysicalCreateTable&>(plan));
+        }
+        case PhysicalNodeType::DropTable: {
+            ExpectChildren(plan, 0, "DropTable");
+            return std::make_unique<DropTableExecutor>(
+                ctx, static_cast<const optimizer::PhysicalDropTable&>(plan));
+        }
     }
 
     throw std::logic_error("CreateExecutor: unknown physical node type");

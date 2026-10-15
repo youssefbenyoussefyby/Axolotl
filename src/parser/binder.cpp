@@ -665,6 +665,15 @@ parser::ast::BoundCreateTableStatement Binder::BindCreateTable(
         if (it == kTypeMap.end()) {
             Error("Unknown type '" + col.typeName + "'", col.line, col.column, col.typeName);
         }
+        for (const auto& prev : bound.schema.columns) {
+            if (prev.name == col.name)
+                Error("Duplicate column '" + col.name + "' in table '" + stmt.table.name + "'",
+                      col.line, col.column, col.name);
+        }
+        if (it->second == storage::ColumnType::VECTOR && col.typeSize.value_or(0) == 0) {
+            Error("Column '" + col.name + "' is VECTOR and needs a dimension, e.g. VECTOR(384)",
+                  col.line, col.column, col.name);
+        }
         storage::ColumnDef def;
         def.name = col.name;
         def.type = it->second;

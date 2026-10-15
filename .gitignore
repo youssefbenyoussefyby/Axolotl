@@ -71,3 +71,6 @@ coverage.info
 
 # Scratch scripts and helpers (kept local, not shipped)
 scripts/
+
+# Generated experiment datasets: commit the generator and seed, not the data.
+experiments/*/data/
