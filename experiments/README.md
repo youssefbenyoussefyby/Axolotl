@@ -17,6 +17,11 @@ experiments/
     └── E001/<git-sha>/    raw outputs: config.json, results.csv, environment.txt
 ```
 
+Tooling: [`tools/record_env.py`](../tools/record_env.py) `E###` creates
+`results/E###/<short-sha>/` and writes `environment.txt` (protocol step 3). Generated
+datasets live in each experiment's `data/` directory, which is git-ignored: commit the
+generator and its seed, not the data.
+
 Experiments are numbered `E###` in creation order and never renumbered. An abandoned
 experiment stays in the tree with its status set to `abandoned` and a sentence on why.
 Negative results count as results.
@@ -52,4 +57,4 @@ Negative results count as results.
 
 | ID | Title | Direction | Needs | Status |
 |----|-------|-----------|-------|--------|
-| [E001](E001-semantic-filter-ordering/README.md) | Ordering a semantic predicate among cheap predicates | 3.1 Semantic filters | P4 operators (Filter, DML) | planned |
+| [E001](E001-semantic-filter-ordering/README.md) | Ordering a semantic predicate among cheap predicates | 3.1 Semantic filters | `SemanticFilter` operator | ready to start |

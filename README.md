@@ -36,7 +36,7 @@ physical plan and executed over real files, under a buffer pool small enough to 
 | **P1** | Storage core: Page, FileManager, BufferPool, Tuple, VectorHeap | ✅ Done |
 | **P2** | Storage services: StorageManager, PageGuard, TableHeap, Catalog, WAL contract | ✅ Done |
 | **P3** | SQL front end: lexer, parser (recursive descent + Pratt), binder, logical plan | ✅ Done |
-| **P4** | Execution engine (Volcano iterator) | 🚧 In progress: framework, the **4.2 milestone** (SeqScan + Filter + Projection) and **4.3 DML** (INSERT, UPDATE, DELETE) done; joins (4.4), aggregation/sort/limit (4.5) and rewrite rules (4.6) next |
+| **P4** | Execution engine (Volcano iterator) | 🚧 In progress: framework, the **4.2 milestone** (SeqScan + Filter + Projection) and **4.3 DML and DDL** (INSERT, UPDATE, DELETE, CREATE/DROP TABLE) done; joins (4.4), aggregation/sort/limit (4.5) and rewrite rules (4.6) next |
 | **P5** | WAL + ARIES-style recovery + page latching + 2PL | ⬜ Planned |
 | **P6** | Relational indexing: B+Tree, hash index, IndexScan | ⬜ Planned |
 | **P7** | Vector indexing: exact KNN oracle, then persisted HNSW | ⬜ Planned |
@@ -54,13 +54,12 @@ Architecture, on-disk formats and gate tests: [`docs/ROADMAP.md`](docs/ROADMAP.m
 | Storage | `Page` (slotted, validated against corrupt headers), `FileManager` (real `fsync`), `BufferPool` (LRU, pin/unpin), `StorageManager` (one pool shared across files), `PageGuard` (RAII pins), `TableHeap` (RID addressing, free-space map, compaction), `VectorHeap` (fixed-stride, large embeddings, commit/rollback) |
 | Catalog | Tables, schemas and vector-heap ids stored in a table inside the database |
 | Front end | Lexer, parser, binder (name/type resolution against the catalog; INSERT checks for NOT NULL and literal types), logical planner, with positioned error messages |
-| Execution | Physical plan, executor factory, SeqScan, Filter, Projection, Insert, Update, Delete. DML is all-or-nothing against bad input (every row is checked before the first write), UPDATE materialises its RID set first (no Halloween problem), and values are type-checked and converted per column (no silent truncation, NULL rejected in NOT NULL columns) |
+| Execution | Physical plan, executor factory, SeqScan, Filter, Projection, Insert, Update, Delete, CreateTable, DropTable. DML is all-or-nothing against bad input (every row is checked before the first write), UPDATE materialises its RID set first (no Halloween problem), and values are type-checked and converted per column (no silent truncation, NULL rejected in NOT NULL columns) |
 | Utilities | YAML config with env overrides, spdlog logger, tracking/guarded allocator |
 
 ### What does not exist yet
 
-Be aware before you try it: `CREATE TABLE` / `DROP TABLE` through SQL (they parse and
-bind, but have no executor yet; use `:seed` for a demo table), joins (P4.4), aggregation,
+Be aware before you try it: joins (P4.4), aggregation,
 sorting and limit (P4.5), rewrite rules (P4.6), transactions and crash recovery (P5), any
 index (P6/P7), the optimizer (P8) and the network server (P9). Vector values cannot be
 written in SQL yet (no vector literal). The server binary is a stub.
@@ -147,7 +146,7 @@ will deliver it. This keeps the console honest while the engine grows.
 | `:queries` | SQL that works today, and what is planned and when |
 | `:status` (`:roadmap`) | Progress bar per phase, generated from the checklists in `docs/phases/` |
 | `:tasks [P4]` | Task checklist of a phase (default: the current stage) |
-| `:seed` | Create the demo table `king_ya_bay` (id, name, age, aura) with 6 rows. Needed because `CREATE TABLE` has no executor yet |
+| `:seed` | Create the demo table `king_ya_bay` (id, name, age, aura) with 6 rows |
 | `:tables` | List tables |
 | `:swim` | Watch the axolotl swim by |
 | `:clear`, `:help`, `:exit` (`:quit`, `:q`) | Utilities |
@@ -164,6 +163,8 @@ SQL ends with `;` and may span several lines. `\c` or `:cancel` discards a half-
 ꒰◉ - ◉꒱> INSERT INTO king_ya_bay VALUES (7, 'Zied', 24, 8.5);
 ꒰◉ - ◉꒱> UPDATE king_ya_bay SET age = age + 1 WHERE id = 7;
 ꒰◉ - ◉꒱> DELETE FROM king_ya_bay WHERE aura < 5.0;
+꒰◉ - ◉꒱> CREATE TABLE notes (id INT32 NOT NULL, body VARCHAR(200));
+꒰◉ - ◉꒱> DROP TABLE notes;
 ```
 
 Every column of the demo table is `NOT NULL`, so an `INSERT` must give all four values.
@@ -181,7 +182,8 @@ no results are claimed yet. The draft research plan, with a starting related-wor
 lives in [`docs/research/RESEARCH.md`](docs/research/RESEARCH.md). Experiments are
 pre-registered and reproducible under [`experiments/`](experiments/README.md); the first,
 [E001](experiments/E001-semantic-filter-ordering/README.md) (ordering a semantic predicate
-among cheap ones), is defined and needs only a `SemanticFilter` operator now that P4.3 is done.
+among cheap ones), has its data generator and run recorder in place and needs only a
+`SemanticFilter` operator.
 
 | # | Direction | Core question | Baseline |
 |---|-----------|---------------|----------|
